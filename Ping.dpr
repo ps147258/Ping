@@ -1,4 +1,4 @@
-// Type: Ping tool - Application.
+﻿// Type: Ping tool - Application.
 // Author: 2022 Wei-Lun Huang
 // Description: Application Ping.
 //

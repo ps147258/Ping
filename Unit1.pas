@@ -1,4 +1,4 @@
-// Type: Ping tool - Application main form.
+ï»¿// Type: Ping tool - Application main form.
 // Author: 2022 Wei-Lun Huang
 // Description: Application Ping main form.
 //
@@ -77,40 +77,41 @@ type
     procedure Button2Click(Sender: TObject);
   private type
     TStatusBarHint = (_SBH_Pings, _SBH_Fails, _SBH_Loss, _SBH_Rate, _SBH_Times, _SBH_Reply);
+    TStatusBarHintCllass = (_SBHC_Title, _SBHC_Description);
   private const
-    cStatusBarHints: array[TStatusBarHint] of string = (
-      'Number of pings.',    // _SBH_Pings - Á`¼Æ
-      'Number of failures.', // _SBH_Fails - API ¥¢±Ñ¼Æ
-      'Number of loss.',     // _SBH_Loss  - ¦^À³¥¢±Ñ¼Æ
-      'Packet Loss Rate.',   // _SBH_Rate  - ¦^À³¥¢±Ñ²v
-      'Timeout times.',      // _SBH_Times - ¶W®É¼Æ
-      'Response time.');     // _SBH_Reply - ¦^À³®É¶¡ª¬ºA
+    cStatusBarHints: array[TStatusBarHint, TStatusBarHintCllass] of string = (
+      ('Number of pings'   , 'Number of executions of Windows API ICMP Ping.'), // _SBH_Pings - ç¸½æ•¸
+      ('Number of failures', 'API failure and package loss.'),                  // _SBH_Fails - å¤±æ•—æ•¸ (API éŒ¯èª¤ èˆ‡ å›æ‡‰å¤±æ•—)
+      ('Number of loss'    , 'The status of the response was unsuccessful.'),   // _SBH_Loss  - å›æ‡‰å¤±æ•—æ•¸
+      ('Rate of Failures'  , 'Rate of the API failure and package loss.'),      // _SBH_Rate  - å›æ‡‰å¤±æ•—ç‡
+      ('Times of timeout'  , 'The response status is timeout or RTT timeout.'), // _SBH_Times - è¶…æ™‚æ•¸
+      ('Response time'     , 'Minimum, maximum and average by RTT.'));          // _SBH_Reply - å›æ‡‰æ™‚é–“ç‹€æ…‹
   private
     { Private declarations }
     LastPingError: Cardinal;
-    LastStr1: string; // ³Ì«á²Ä¤@¶µªº°T®§
-    LastStr2: string; // ³Ì«á²Ä¤G¶µªº°T®§
-    LogsBuff: TStringList; // °T®§½w½Ä¡A¥Î©ó¦P¨B°õ¦æÄò
+    LastStr1: string; // æœ€å¾Œç¬¬ä¸€é …çš„è¨Šæ¯
+    LastStr2: string; // æœ€å¾Œç¬¬äºŒé …çš„è¨Šæ¯
+    LogsBuff: TStringList; // è¨Šæ¯ç·©è¡ï¼Œç”¨æ–¼åŒæ­¥åŸ·è¡ŒçºŒ
 
     procedure AddToComboBox(ComboBox: TComboBox; const s: string); inline;
     procedure AddToComboBox1(const s: string); inline;
     procedure AddToComboBox2(const s: string); inline;
     procedure AddAdapterAddressesToComboBox;
-    function IsMemoScrollBottom: Boolean; // ¨ú±o Memo1 ÀËµø°Ï¬O§_³B©ó³Ì«á¤@¦æ
+    function IsMemoScrollBottom: Boolean; // å–å¾— Memo1 æª¢è¦–å€æ˜¯å¦è™•æ–¼æœ€å¾Œä¸€è¡Œ
     function StatusPanel(ID: TStatusBarHint): TStatusPanel; inline;
-    function GetStatusIndexBy(X: Integer): Integer; inline; // ®y¼Ğ©Ò«ü¦Vªºª¬ºAÄæ¦ì¯Á¤Ş
-    procedure SetHistoryLength(NewLength: Integer); // ³]©w¹Ïªíªí¹Fªø«×
-    procedure ResetHistory;                         // ¹Ïªí«O¯dªø«×¦ı¼Æ­È²M°£
-    procedure SstControlEnabled(State: Boolean);    // ³¡¤À¤¶­±°±¥Î©Î±Ò¥Î
-    procedure RefreshSeriesPointer; inline;         // ¥H¹Ïªí¸`ÂI±K¶°«×¤Á´«¸`ÂIÅã¥Ü
+    function GetStatusIndexBy(X: Integer): Integer; inline; // åº§æ¨™æ‰€æŒ‡å‘çš„ç‹€æ…‹æ¬„ä½ç´¢å¼•
+    procedure SetHistoryLength(NewLength: Integer); // è¨­å®šåœ–è¡¨è¡¨é”é•·åº¦
+    procedure ResetHistory;                         // åœ–è¡¨ä¿ç•™é•·åº¦ä½†æ•¸å€¼æ¸…é™¤
+    procedure SstControlEnabled(State: Boolean);    // éƒ¨åˆ†ä»‹é¢åœç”¨æˆ–å•Ÿç”¨
+    procedure RefreshSeriesPointer; inline;         // ä»¥åœ–è¡¨ç¯€é»å¯†é›†åº¦åˆ‡æ›ç¯€é»é¡¯ç¤º
 
     function InsertTimeStamp(const s: string): string; inline;
-    procedure FlushLogsBuff; // ±N°T®§½w½Ä±Æ¦Ü Memo1
+    procedure FlushLogsBuff; // å°‡è¨Šæ¯ç·©è¡æ’è‡³ Memo1
 
-    procedure SyncOnBefore; // °õ¦æÄò°_©l®É
-    procedure SyncOnAfter;  // °õ¦æÄòµ²§ô«á
-    procedure SyncOnBegin;  // °õ¦æÄò´`Àô¶¥¬q¶}©l«e
-    procedure SyncOnStatus; // °õ¦æÄò´`Àô¶¥¬qµ²§ô«á
+    procedure SyncOnBefore; // åŸ·è¡ŒçºŒèµ·å§‹æ™‚
+    procedure SyncOnAfter;  // åŸ·è¡ŒçºŒçµæŸå¾Œ
+    procedure SyncOnBegin;  // åŸ·è¡ŒçºŒå¾ªç’°éšæ®µé–‹å§‹å‰
+    procedure SyncOnStatus; // åŸ·è¡ŒçºŒå¾ªç’°éšæ®µçµæŸå¾Œ
   public
     { Public declarations }
   end;
@@ -127,15 +128,15 @@ resourcestring
   errStatusHintOver = 'Value [%d] is outside the recognized range of type TStatusBarHint.';
 
 var
-  Ping: TPing = nil;                    // Windows API IcmpSendEcho ªº¥]¸Ëª«¥ó
-  FormIP, ToIP: TSockAddr;              // sockaddr ¸ê°T
-  FormAddrStr, ToAddrStr: string;       // ¦ì¸m¦r¦ê
-  TimeoutMS: DWORD = _DefaultTimeoutMS; // API ¶W®É®É¶¡(²@¬í)
-  IntervalMS: DWORD = 1000;             // °õ¦æ¶¡®æ(²@¬í)
-  RequestSize: DWORD = 32;              // ­nµo°eªº´ú¸Õ°T®§ªø«×
-  HistoryLength: Integer = 120;         // ¹Ïªíªø«×
-  Replies: DWORD;                       // Ping API ªº¦^À³¼Æ
-  LastTime: Cardinal;                   // ¤U¦¸§ó·sªº®É¶¡
+  Ping: TPing = nil;                    // Windows API IcmpSendEcho çš„åŒ…è£ç‰©ä»¶
+  FormIP, ToIP: TSockAddr;              // sockaddr è³‡è¨Š
+  FormAddrStr, ToAddrStr: string;       // ä½ç½®å­—ä¸²
+  TimeoutMS: DWORD = _DefaultTimeoutMS; // API è¶…æ™‚æ™‚é–“(æ¯«ç§’)
+  IntervalMS: DWORD = 1000;             // åŸ·è¡Œé–“æ ¼(æ¯«ç§’)
+  RequestSize: DWORD = 32;              // è¦ç™¼é€çš„æ¸¬è©¦è¨Šæ¯é•·åº¦
+  HistoryLength: Integer = 120;         // åœ–è¡¨é•·åº¦
+  Replies: DWORD;                       // Ping API çš„å›æ‡‰æ•¸
+  LastTime: Cardinal;                   // ä¸‹æ¬¡æ›´æ–°çš„æ™‚é–“
 
 {$R *.dfm}
 
@@ -223,8 +224,8 @@ begin
 
   Point := StatusBar1.ClientToScreen(TPoint.Create(X, Y));
 
-  BalloonHint1.Title := cStatusBarHints[TStatusBarHint(I)];
-  BalloonHint1.Description := '';
+  BalloonHint1.Title := cStatusBarHints[TStatusBarHint(I), _SBHC_Title];
+  BalloonHint1.Description := cStatusBarHints[TStatusBarHint(I), _SBHC_Description];
   BalloonHint1.ShowHint(Point);
 end;
 
@@ -260,28 +261,28 @@ procedure TForm1.Button2Click(Sender: TObject);
 var
   Item: TListItem;
 begin
-  // ³]©wµøµ¡¬°¦Ü©ó¥Dµøµ¡ªº¤¤¥¡
+  // è¨­å®šè¦–çª—ç‚ºè‡³æ–¼ä¸»è¦–çª—çš„ä¸­å¤®
   Form2.Left := Self.Left + (Self.Width - Form2.Width) div 2;
   Form2.Top := Self.Top + (Self.Height - Form2.Height) div 2;
 
   try
-    // ©I¥sÅã¥Ü ³q°T¦ì§}¿ï¾Üµøµ¡ »P¼È°±¦¹¤¶­±ªº³B²z¡Aª½¦Ü©Ò©I¥sªºµøµ¡Ãö³¬
+    // å‘¼å«é¡¯ç¤º é€šè¨Šä½å€é¸æ“‡è¦–çª— èˆ‡æš«åœæ­¤ä»‹é¢çš„è™•ç†ï¼Œç›´è‡³æ‰€å‘¼å«çš„è¦–çª—é—œé–‰
     if Form2.ShowModal <> mrOk then
       Exit;
 
-    // ¨ú±o¿ï¾Üªº²M³æ¶µ¥Ø¡A¤£¦s¦b«h°h¥X³B²z
+    // å–å¾—é¸æ“‡çš„æ¸…å–®é …ç›®ï¼Œä¸å­˜åœ¨å‰‡é€€å‡ºè™•ç†
     Item := Form2.ListView1.Selected;
     if not Assigned(Item) then
       Exit;
 
-    // ¦p²M³æ¯Ê¤Ö¤l¶µ¥Ø«hµo¥X¨Ò¥~
+    // å¦‚æ¸…å–®ç¼ºå°‘å­é …ç›®å‰‡ç™¼å‡ºä¾‹å¤–
     if Item.SubItems.Count < 1 then
       raise Exception.Create('Adapter list error.');
   finally
     AddAdapterAddressesToComboBox;
   end;
 
-  // ³]©w ¨Ó·½ »P ¥Ø¦a ¦ì§}
+  // è¨­å®š ä¾†æº èˆ‡ ç›®åœ° ä½å€
   ComboBox1.Text := Item.Caption;
   ComboBox2.Text := Item.SubItems[0];
 end;
@@ -463,7 +464,7 @@ procedure TForm1.SyncOnBegin;
 begin
   Memo1.Lines.BeginUpdate;
   try
-    FlushLogsBuff; // ±N©Ò¦³¤é»x½w½Ä°Ïªº°T®§¥ş³¡¿é¤J¦Ü Memo1 ¤¤¡AµM«á²M°£¤é»x½w½Ä°Ï
+    FlushLogsBuff; // å°‡æ‰€æœ‰æ—¥èªŒç·©è¡å€çš„è¨Šæ¯å…¨éƒ¨è¼¸å…¥è‡³ Memo1 ä¸­ï¼Œç„¶å¾Œæ¸…é™¤æ—¥èªŒç·©è¡å€
   finally
     Memo1.Lines.EndUpdate;
   end;
@@ -484,12 +485,12 @@ var
     function FormatRTT(Value: Word): string; overload; inline;
     begin
       if Value = 0 then
-        Result := '<1' // ¥u¬Oªí¥Ü³Ì¤pµL­­±µªñ 0 ¦ı¤£¥i¯àµ¥©ó 0 ¦Ó¤w
+        Result := '<1' // åªæ˜¯è¡¨ç¤ºæœ€å°ç„¡é™æ¥è¿‘ 0 ä½†ä¸å¯èƒ½ç­‰æ–¼ 0 è€Œå·²
       else
         Result := Value.ToString;
     end;
   begin
-    if P.Times = 0 then
+    if P.RttMin > P.RttMax then
       Exit('Min: ?ms, Max: ?ms, Average: ?ms');
 
     Min := FormatRTT(P.RttMin);
@@ -498,22 +499,22 @@ var
     Result := Format('Min: %sms, Max: %sms, Average: %sms', [Min, Max, Average]);
   end;
 begin
-  s := Ping.ErrorMessage;   // ¨ú±o¿ù»~°T®§
-  pReply := Ping.EchoReply; // ¨ú±oµªÀ³½w½Ä°Ï«ü¼Ğ
+  s := Ping.ErrorMessage;   // å–å¾—éŒ¯èª¤è¨Šæ¯
+  pReply := Ping.EchoReply; // å–å¾—ç­”æ‡‰ç·©è¡å€æŒ‡æ¨™
 
   //
-  // §ó·s¦^À³®É¶¡¹Ïªí
+  // æ›´æ–°å›æ‡‰æ™‚é–“åœ–è¡¨
   //
   Series1.BeginUpdate;
   try
-    // ©¹«á²¾°ÊÂÂªº¹Ïªí
+    // å¾€å¾Œç§»å‹•èˆŠçš„åœ–è¡¨
     for I := Series1.Count - 2 downto 0 do
     begin
       Series1.YValue[I + 1] := Series1.YValue[I];
       Series1.ValueColor[I + 1] := Series1.ValueColor[I];
     end;
 
-    // ¨ú±o¦^À³®É¶¡
+    // å–å¾—å›æ‡‰æ™‚é–“
     I := -1;
     if s.IsEmpty then
     begin
@@ -523,7 +524,7 @@ begin
       end;
     end;
 
-    // ¶ñ¤J³Ì·s¦^À³®É¶¡
+    // å¡«å…¥æœ€æ–°å›æ‡‰æ™‚é–“
     if I < 0 then
       Series1.SetNull(0)
     else
@@ -537,7 +538,7 @@ begin
 
   if s.IsEmpty then
   begin
-    // ¦^À³µ²ªGªº°T®§
+    // å›æ‡‰çµæœçš„è¨Šæ¯
     case Ping.Family of
     AF_INET:
       s := Format(
@@ -552,10 +553,10 @@ begin
     end;
   end;
 
-  // ÀË¬d¥Ø«e Memo1 ÀËµø°Ï°ì¬O§_Åã¥Ü³Ì«á¤@¦æ
+  // æª¢æŸ¥ç›®å‰ Memo1 æª¢è¦–å€åŸŸæ˜¯å¦é¡¯ç¤ºæœ€å¾Œä¸€è¡Œ
   Scrolling := IsMemoScrollBottom;
 
-  // ¦pªG°T®§µo¥Í²§°Ê¡A«hÅã¥Ü³Ì·s°T®§¡A¥Î©ó¤j´T´î¤Ö¬ö¿ı
+  // å¦‚æœè¨Šæ¯ç™¼ç”Ÿç•°å‹•ï¼Œå‰‡é¡¯ç¤ºæœ€æ–°è¨Šæ¯ï¼Œç”¨æ–¼å¤§å¹…æ¸›å°‘ç´€éŒ„
   Memo1.Lines.BeginUpdate;
   try
     J := Memo1.Lines.Count - 1;
@@ -570,11 +571,11 @@ begin
   LastStr1 := s;
   LastPingError := Ping.Error;
 
-  // ¦pªG­ì¥»ÀËµø°Ï°ì¦ì¸m¬O³B©ó³Ì«á¤@¦æ«h¡A­«·s±²°Ê¦Ü³Ì«á¤@¦æ
+  // å¦‚æœåŸæœ¬æª¢è¦–å€åŸŸä½ç½®æ˜¯è™•æ–¼æœ€å¾Œä¸€è¡Œå‰‡ï¼Œé‡æ–°æ²å‹•è‡³æœ€å¾Œä¸€è¡Œ
   if Scrolling then
     Memo1.Perform(EM_SCROLL, SB_BOTTOM, 0);
 
-  // §ó·sª¬ºAÅã¥Ü
+  // æ›´æ–°ç‹€æ…‹é¡¯ç¤º
   StatusBar1.Panels.BeginUpdate;
   try
     StatusPanel(_SBH_Pings).Text := 'Pings: ' + Ping.Times.ToString;
@@ -601,11 +602,11 @@ var
   I: Integer;
   b: Boolean;
 begin
-  // »P¥D°õ¦æÄò¦P¨B¡A³qª¾¥D°õ¦æÄò°µªì©l¤Æ«eªº§@·~
+  // èˆ‡ä¸»åŸ·è¡ŒçºŒåŒæ­¥ï¼Œé€šçŸ¥ä¸»åŸ·è¡ŒçºŒåšåˆå§‹åŒ–å‰çš„ä½œæ¥­
   Sender.Synchronize(SyncOnBefore);
 
   try
-    // ¦pªG¦³¨S¦³¿é¤J ¨Ó·½ ¦ì§}«h ¼Ğ°O¦¹°õ¦æÄò°±¤î ¨Ã °h¥X³B²z
+    // å¦‚æœæœ‰æ²’æœ‰è¼¸å…¥ ä¾†æº ä½å€å‰‡ æ¨™è¨˜æ­¤åŸ·è¡ŒçºŒåœæ­¢ ä¸¦ é€€å‡ºè™•ç†
     if ToAddrStr.IsEmpty then
     begin
       LogsBuff.Add('Missing input source or destination address.');
@@ -613,7 +614,7 @@ begin
       Exit;
     end;
 
-    // ¦pªG ¨Ó·½¦ì§} Âà´«¥¢±Ñ«h ¼Ğ°O¦¹°õ¦æÄò°±¤î ¨Ã °h¥X³B²z
+    // å¦‚æœ ä¾†æºä½å€ è½‰æ›å¤±æ•—å‰‡ æ¨™è¨˜æ­¤åŸ·è¡ŒçºŒåœæ­¢ ä¸¦ é€€å‡ºè™•ç†
     FillChar(FormIP, SizeOf(FormIP), 0);
     if not StringToAddress(FormAddrStr, FormIP) then
     begin
@@ -622,7 +623,7 @@ begin
       Exit;
     end;
 
-    // ¦pªG¥Ø¦a ºô°ì ©Î ¦ì§} Âà´«¦Ü sockaddr µ²ªG¬° 0 «h ¼Ğ°O¦¹°õ¦æÄò°±¤î ¨Ã °h¥X³B²z
+    // å¦‚æœç›®åœ° ç¶²åŸŸ æˆ– ä½å€ è½‰æ›è‡³ sockaddr çµæœç‚º 0 å‰‡ æ¨™è¨˜æ­¤åŸ·è¡ŒçºŒåœæ­¢ ä¸¦ é€€å‡ºè™•ç†
     FillChar(ToIP, SizeOf(ToIP), 0);
     if not StringToAddress(ToAddrStr, ToIP) then
     begin
@@ -677,7 +678,7 @@ begin
     end;
 
     //
-    // ³]©w Ping °Ñ¼Æ
+    // è¨­å®š Ping åƒæ•¸
     //
     Ping.TimeoutMS := TimeoutMS;
     Ping.IcmpCreate(FormIP, ToIP);
@@ -690,7 +691,7 @@ begin
       'Request size: %ubytes, Options: Ttl %d, Tos %d, Flags 0x%0.2X.', [
       Ping.RequestSize, Ping.Options.Ttl, Ping.Options.Tos, Ping.Options.Flags]));
   finally
-    // »P¥D°õ¦æÄò¦P¨B¡A³qª¾¥D°õ¦æÄòªì©l¤Æ§@·~µ²§ô
+    // èˆ‡ä¸»åŸ·è¡ŒçºŒåŒæ­¥ï¼Œé€šçŸ¥ä¸»åŸ·è¡ŒçºŒåˆå§‹åŒ–ä½œæ¥­çµæŸ
     Sender.Synchronize(SyncOnBegin);
   end;
 
@@ -701,7 +702,7 @@ procedure TForm1.IdThreadComponent1Run(Sender: TIdThreadComponent);
 var
   Curr, N: Cardinal;
 begin
-  // ¨ú±o®É¶¡¨Ã¥B­pºâ®É¶¡ªø«×
+  // å–å¾—æ™‚é–“ä¸¦ä¸”è¨ˆç®—æ™‚é–“é•·åº¦
   Curr := timeGetTime;
   if Curr >= LastTime then
     N := Curr - LastTime
@@ -712,14 +713,14 @@ begin
   begin
     Inc(LastTime, IntervalMS);
 
-    // °õ¦æ Ping¡Aµ²§ô«á¦^¶Ç ¦^À³¼Æ
+    // åŸ·è¡Œ Pingï¼ŒçµæŸå¾Œå›å‚³ å›æ‡‰æ•¸
     Replies := Ping.SendEcho;
 
-    // »P¥D°õ¦æÄò¦P¨B¡A§ó·s¤¶­±ª¬ºA
+    // èˆ‡ä¸»åŸ·è¡ŒçºŒåŒæ­¥ï¼Œæ›´æ–°ä»‹é¢ç‹€æ…‹
     IdThreadComponent1.Synchronize(SyncOnStatus);
   end;
 
-  // ¼È°±°õ¦æ
+  // æš«åœåŸ·è¡Œ
   if IntervalMS < 200 then
     Sleep(IntervalMS div 4)
   else
@@ -728,9 +729,9 @@ end;
 
 procedure TForm1.IdThreadComponent1AfterExecute(Sender: TIdThreadComponent);
 begin
-  // Ãö³¬ Ping ªº Icmp ³q°T
+  // é—œé–‰ Ping çš„ Icmp é€šè¨Š
   Ping.IcmpClose;
-  // »P¥D°õ¦æÄò¦P¨B¡A³qª¾¥D°õ¦æÄò¤l°õ¦æÄò§@·~¤w§¹¦¨
+  // èˆ‡ä¸»åŸ·è¡ŒçºŒåŒæ­¥ï¼Œé€šçŸ¥ä¸»åŸ·è¡ŒçºŒå­åŸ·è¡ŒçºŒä½œæ¥­å·²å®Œæˆ
   Sender.Synchronize(SyncOnAfter);
 end;
 

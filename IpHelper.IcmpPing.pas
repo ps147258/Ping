@@ -1,4 +1,4 @@
-// Type: Windows network ICMP ping.
+ï»¿// Type: Windows network ICMP ping.
 // Author: 2022 Wei-Lun Huang
 // Description: ping.
 //
@@ -54,7 +54,7 @@ type
 //   IN ULONG Reserved
 //   );
 
-// IPv4 ©Î IPv6 ³q¥Î
+// IPv4 æˆ– IPv6 é€šç”¨
 function IcmpCloseHandle(icmpHandle: THandle): Boolean; stdcall;
 
 // IPv4
@@ -94,7 +94,7 @@ function Icmp6SendEcho2(
   Timeout           : DWORD   // [in]           DWORD                  Timeout
 ): DWORD; stdcall;
 
-// ¨ú±o ª¬ºA½X(«¬ºAIP_STATUS) ¬Û¹ïÀ³ªº°T®§
+// å–å¾— ç‹€æ…‹ç¢¼(å‹æ…‹IP_STATUS) ç›¸å°æ‡‰çš„è¨Šæ¯
 function GetReplyStatusString(Status: ULONG): string;
 
 type
@@ -135,49 +135,49 @@ const
   _ReplyV4BufferSize = _EchoReplyV4Size + _IoStatusBlockSize;
   _ReplyV6BufferSize = _EchoReplyV6Size + _IoStatusBlockSize;
 
-  _DefaultTimeoutMS = 500; // ¹w³] ICMP ping API ªº¹O®É®É¶¡
+  _DefaultTimeoutMS = 500; // é è¨­ ICMP ping API çš„é€¾æ™‚æ™‚é–“
 
 type
   TPing = class(TObject)
   private const
-    _WSA_Version = $0202; // Winsock DLL ªì©l¤Æªº¥Ø¼Ğª©¥»(¨Ò¡G2.2 = $0202)
-    _DefaultTimeout = _DefaultTimeoutMS; // ¹w³]¹O®É®É¶¡
+    _WSA_Version = $0202; // Winsock DLL åˆå§‹åŒ–çš„ç›®æ¨™ç‰ˆæœ¬(ä¾‹ï¼š2.2 = $0202)
+    _DefaultTimeout = _DefaultTimeoutMS; // é è¨­é€¾æ™‚æ™‚é–“
   private
-    FError: DWORD;       // SendEcho APIªº¿ù»~½X
-    FTimeoutMS: DWORD;       // ³Ìªøµ¥«İ®É¶¡ MilliSecond(ms)
-    FTimes: Cardinal;        // SendEcho ªº°õ¦æ¦¸¼Æ
-    FFails: Cardinal;        // SendEcho ªº¥¢±Ñ¦¸¼Æ
-    FLost: Cardinal;         // SendEcho ¦^À³ªº¿ù»~¦¸¼Æ
-    FTimeouts: Cardinal;     // SendEcho ªº¶W®É¦¸¼Æ
-    FEchoMin: Word;          // RoundTripTime ³Ì¤p­È(ms)
-    FEchoMax: Word;          // RoundTripTime ³Ì¤j­È(ms)
-    FEchoCumulant: Cardinal; // RoundTripTime ªº²Ö­p®É¶¡¥[Á`(ms)
-    FhIcmp: THandle;         // ICMP echo ³q°T±±¨î
-    FFamily: Smallint;       // ¦ì§}Ãş«¬
-    FWSAData: TWSAData;      // Winsock DLL ¸ê°T
-    FOptions: TIpOptionInformation; // ¿ï¶µ°Ñ¼Æ
-    FSource: TSockAddr;             // ¨Ó·½¦ì§}
-    FDestination: TSockAddr;        // ¥Ø¼Ğ¦ì§}
-    FRequestBuffer: array of Byte;  // ¶Ç°e½w½Ä°Ï
-    FReplyBuffer: array of Byte;    // ±µ¦¬½w½Ä°Ï
+    FError: DWORD;           // SendEcho API çš„éŒ¯èª¤ç¢¼
+    FTimeoutMS: DWORD;       // æœ€é•·ç­‰å¾…æ™‚é–“ MilliSecond(ms)
+    FTimes: Cardinal;        // SendEcho çš„åŸ·è¡Œæ¬¡æ•¸
+    FFails: Cardinal;        // SendEcho çš„å¤±æ•—æ¬¡æ•¸ (API éŒ¯èª¤ èˆ‡ å›æ‡‰å¤±æ•—)
+    FLost: Cardinal;         // SendEcho å›æ‡‰çš„éŒ¯èª¤æ¬¡æ•¸ (æ¥æ”¶ç·©è¡å€ä¸­çš„ç‹€æ…‹ç¢¼éæˆåŠŸ)
+    FTimeouts: Cardinal;     // SendEcho çš„è¶…æ™‚æ¬¡æ•¸ (å›æ‡‰ç‹€æ…‹è¶…æ™‚ï¼Œæˆ– RTT å¤§æ–¼ TimeoutMS)
+    FEchoMin: Word;          // RoundTripTime(RTT) æœ€å°å€¼(ms)
+    FEchoMax: Word;          // RoundTripTime(RTT) æœ€å¤§å€¼(ms)
+    FEchoCumulant: Cardinal; // RoundTripTime(RTT) çš„ç´¯è¨ˆæ™‚é–“åŠ ç¸½(ms)
+    FhIcmp: THandle;         // ICMP echo é€šè¨Šæ§åˆ¶
+    FFamily: Smallint;       // ä½å€é¡å‹
+    FWSAData: TWSAData;      // Winsock DLL è³‡è¨Š
+    FOptions: TIpOptionInformation; // é¸é …åƒæ•¸
+    FSource: TSockAddr;             // ä¾†æºä½å€
+    FDestination: TSockAddr;        // ç›®æ¨™ä½å€
+    FRequestBuffer: array of Byte;  // å‚³é€ç·©è¡å€
+    FReplyBuffer: array of Byte;    // æ¥æ”¶ç·©è¡å€
 
-    procedure WSABegin; inline; // ªì©l Winsock
-    procedure WSAEnd; inline;   // µ²§ô Winsock
-    procedure Initial; inline;  // ªì©l¤Æ¥»ª«¥óªºÅÜ¼Æ(¶È¥Î©ó Create)
+    procedure WSABegin; inline; // åˆå§‹ Winsock
+    procedure WSAEnd; inline;   // çµæŸ Winsock
+    procedure Initial; inline;  // åˆå§‹åŒ–æœ¬ç‰©ä»¶çš„è®Šæ•¸(åƒ…ç”¨æ–¼ Create)
 
     function TryGetEchoReplyPtr: PIcmpEchoReplyEx;
 
-    function GetLossRate: Single;                       // ¨ú±o¿ò¥¢²v
-    function GetAverage: Single; inline;                // RoundTripTime(RTT) ªº¥­§¡­È(ms)
-    function CalcReplySize(RequestSize: DWORD): DWORD;  // ­pºâ¦^À³½w½Ä°Ïªº©Ò»İ¤j¤p
-    function GetRequestSize: DWORD; inline;             // ¨ú±o¥Ø«eµo°e½w½Ä°Ïªº¤j¤p
-    function GetReplySize: DWORD; inline;               // ¨ú±o¥Ø«e±µ¦¬½w½Ä°Ïªº¤j¤p
-    function GetEchoReplyPtr: PIcmpEchoReplyEx; inline; // ¨ú±o¥Ø«e±µ¦¬½w½Ä°Ï¦ì§}«ü¼Ğ
+    function GetLossRate: Single;                       // å–å¾—éºå¤±ç‡
+    function GetAverage: Single; inline;                // RoundTripTime(RTT) çš„å¹³å‡å€¼(ms)
+    function CalcReplySize(RequestSize: DWORD): DWORD;  // è¨ˆç®—å›æ‡‰ç·©è¡å€çš„æ‰€éœ€å¤§å°
+    function GetRequestSize: DWORD; inline;             // å–å¾—ç›®å‰ç™¼é€ç·©è¡å€çš„å¤§å°
+    function GetReplySize: DWORD; inline;               // å–å¾—ç›®å‰æ¥æ”¶ç·©è¡å€çš„å¤§å°
+    function GetEchoReplyPtr: PIcmpEchoReplyEx; inline; // å–å¾—ç›®å‰æ¥æ”¶ç·©è¡å€ä½å€æŒ‡æ¨™
     function GetEchoReplyV4: PIcmpEchoReply;            // for AF_INET
     function GetEchoReplyV6: PIcmpV6EchoReply;          // for AF_INET6
     function GetStatus: ULONG;                          // Get Reply IP_STATUS
     function GetRoundTripTime: ULONG;                   // Get RTT(ms)
-    function GetErrorMessage: string;                   // ¨Ì·Ó¨t²Î¦a°Ï»y¨¥¨ú±o¿ù»~°T®§
+    function GetErrorMessage: string;                   // ä¾ç…§ç³»çµ±åœ°å€èªè¨€å–å¾—éŒ¯èª¤è¨Šæ¯
 
   public
     constructor Create; overload;
@@ -186,70 +186,70 @@ type
     constructor Create(const ASource, ADestination: TSockAddr); overload;
     destructor Destroy; override;
 
-    // ª½±µ¦^¶Ç¦^À³®É¶¡¡A-1(¤p©ó0)ªí¥Ü¥¢±Ñ
+    // ç›´æ¥å›å‚³å›æ‡‰æ™‚é–“ï¼Œ-1(å°æ–¼0)è¡¨ç¤ºå¤±æ•—
     class function RunSendEcho(const ASource, ADestination: TSockAddr; RequestSize: DWORD; ATimeoutMS: DWORD): Integer; overload; static;
     class function RunSendEcho(const ASource, ADestination: TSockAddr; ATimeoutMS: DWORD = _DefaultTimeout): Integer; overload; static;
 
-    // SendEcho ½w½Ä°Ï (SendEcho ¨Ï¥Î«eªº¥²­n«e¸m§@·~)
+    // SendEcho ç·©è¡å€ (SendEcho ä½¿ç”¨å‰çš„å¿…è¦å‰ç½®ä½œæ¥­)
     procedure InitialReply;
     procedure CreatRequest(Size: WORD; Mode: TCreatRequestMode = CRM_Standard);
-    procedure SetRequest(const Buffer; Size: WORD);      // ½Æ»s¸ê®Æ¦Ü¶Ç°e½w½Ä°Ï
-    function GetRequest(var Buffer; Size: DWORD): DWORD; // ¨ú±o¶Ç°eªº½w½Ä°Ï¸ê®Æ
-    function GetReply(var Buffer; Size: DWORD): DWORD;   // ¨ú±o±µ¦¬ªº½w½Ä°Ï¸ê®Æ
-    function GetEchoReply(var EchoReply: TPingEchoReply): Boolean; // ¶È¨ú±o¦^À³ªºª¬ºAÃş¸ê°T
+    procedure SetRequest(const Buffer; Size: WORD);      // è¤‡è£½è³‡æ–™è‡³å‚³é€ç·©è¡å€
+    function GetRequest(var Buffer; Size: DWORD): DWORD; // å–å¾—å‚³é€çš„ç·©è¡å€è³‡æ–™
+    function GetReply(var Buffer; Size: DWORD): DWORD;   // å–å¾—æ¥æ”¶çš„ç·©è¡å€è³‡æ–™
+    function GetEchoReply(var EchoReply: TPingEchoReply): Boolean; // åƒ…å–å¾—å›æ‡‰çš„ç‹€æ…‹é¡è³‡è¨Š
 
     //
-    // ICMP ³q°T (SendEcho ¨Ï¥Î«eªº¥²­n«e¸m§@·~)
+    // ICMP é€šè¨Š (SendEcho ä½¿ç”¨å‰çš„å¿…è¦å‰ç½®ä½œæ¥­)
     //
-    procedure ResetState; inline;          // Âk¹s²Î­p
-    function IcmpCreated: Boolean; inline; // ÀË¬d ICMP echo ³q°T¬O§_¤w«Ø¥ß
-    // «Ø¥ß ICMP ³q°T¡A³]©w¨ÃÀË¬d ¨Ó·½»P¥Øªº ºô¸ô¦ì§}
+    procedure ResetState; inline;          // æ­¸é›¶çµ±è¨ˆ
+    function IcmpCreated: Boolean; inline; // æª¢æŸ¥ ICMP echo é€šè¨Šæ˜¯å¦å·²å»ºç«‹
+    // å»ºç«‹ ICMP é€šè¨Šï¼Œè¨­å®šä¸¦æª¢æŸ¥ ä¾†æºèˆ‡ç›®çš„ ç¶²è·¯ä½å€
     procedure IcmpCreate(const ASource, ADestination: TSockAddr);
-    // Ãö³¬ ICMP ³q°T
+    // é—œé–‰ ICMP é€šè¨Š
     procedure IcmpClose;  inline;
 
-    // µo°e«Ê¥]
+    // ç™¼é€å°åŒ…
     function SendEcho: DWORD; overload;
     function SendEcho(ATimeoutMS: Word): DWORD; overload;
     function SendEcho(const ASource, ADestination: TSockAddr): DWORD; overload;
     function SendEcho(const ASource, ADestination: TSockAddr; ATimeoutMS: DWORD): DWORD; overload;
 
-    // °òÂ¦°Ñ¼Æ
-    property TimeoutMS: DWORD read FTimeoutMS write FTimeoutMS; // API ªº¹O®É®É¶¡
-    property Family: Smallint read FFamily;                     // IP Ãş«¬
-    property WSAData: TWSAData read FWSAData;                   // Winsock ¸ê°T
+    // åŸºç¤åƒæ•¸
+    property TimeoutMS: DWORD read FTimeoutMS write FTimeoutMS; // API çš„é€¾æ™‚æ™‚é–“
+    property Family: Smallint read FFamily;                     // IP é¡å‹
+    property WSAData: TWSAData read FWSAData;                   // Winsock è³‡è¨Š
     property Options: TIpOptionInformation read FOptions write FOptions;
     property Source: TSockAddr read FSource;
     property Destination: TSockAddr read FDestination;
 
-    // ÀË¬dª¬ºA (SendEcho °õ¦æ«á¤~¬O¦³®Ä­È)
+    // æª¢æŸ¥ç‹€æ…‹ (SendEcho åŸ·è¡Œå¾Œæ‰æ˜¯æœ‰æ•ˆå€¼)
     function CheckReply: Boolean;
     function CheckSucceed: Boolean;
 
     property Error: DWORD read FError write FError;
     property Status: ULONG read GetStatus;               // Reply IP_STATUS
     property RoundTripTime: ULONG read GetRoundTripTime; // RTT in milliseconds
-    property ErrorMessage: string read GetErrorMessage;  // ¿ù»~°T®§¡A¦¨¥\«hµL¦r¦ê¿é¥X
+    property ErrorMessage: string read GetErrorMessage;  // éŒ¯èª¤è¨Šæ¯ï¼ŒæˆåŠŸå‰‡ç„¡å­—ä¸²è¼¸å‡º
 
-    // ª¬ºA²Î­p
-    property Times: Cardinal read FTimes;              // °õ¦æ Ping ªº¦¸¼Æ
-    property Fails: Cardinal read FFails;              // ¥¢±Ñ¼Æ (API ¿ù»~)
-    property Lost: Cardinal read FLost;                // ¿ò¥¢¼Æ (¦^À³ª¬ºA¤£¦¨¥\)
-    property Timeouts: Cardinal read FTimeouts;        // ¦¨¥\®Éªº¹O®É¦¸¼Æ(¥HTimeoutMS¬°¨Ì¾Ú)
-    property LossRate: Single read GetLossRate;        // ¿ò¥¢²v (¦^À³ª¬ºA¤£¦¨¥\)
-    property RttCumulant: Cardinal read FEchoCumulant; // ¦^À³®É¶¡¥[Á`
-    property RttAverage: Single read GetAverage;       // ¦^À³®É¶¡¥­§¡­È
-    property RttMin: Word read FEchoMin;               // ¦^À³®É¶¡³Ì¤p­È
-    property RttMax: Word read FEchoMax;               // ¦^À³®É¶¡³Ì¤j­È
+    // ç‹€æ…‹çµ±è¨ˆ
+    property Times: Cardinal read FTimes;              // åŸ·è¡Œ Ping çš„æ¬¡æ•¸
+    property Fails: Cardinal read FFails;              // å¤±æ•—æ•¸ (API éŒ¯èª¤)
+    property Lost: Cardinal read FLost;                // éºå¤±æ•¸ (å›æ‡‰ç‹€æ…‹ä¸æˆåŠŸ)
+    property Timeouts: Cardinal read FTimeouts;        // æˆåŠŸæ™‚çš„é€¾æ™‚æ¬¡æ•¸(ä»¥TimeoutMSç‚ºä¾æ“š)
+    property LossRate: Single read GetLossRate;        // éºå¤±ç‡ (å›æ‡‰ç‹€æ…‹ä¸æˆåŠŸ)
+    property RttCumulant: Cardinal read FEchoCumulant; // å›æ‡‰æ™‚é–“åŠ ç¸½
+    property RttAverage: Single read GetAverage;       // å›æ‡‰æ™‚é–“å¹³å‡å€¼
+    property RttMin: Word read FEchoMin;               // å›æ‡‰æ™‚é–“æœ€å°å€¼
+    property RttMax: Word read FEchoMax;               // å›æ‡‰æ™‚é–“æœ€å¤§å€¼
 
-    // ½w½Ä°Ï¤j¤p
+    // ç·©è¡å€å¤§å°
     property RequestSize: DWORD read GetRequestSize;
     property ReplySize: DWORD read GetReplySize;
 
-    // ¨ú±o±µ¦¬½w½Ä°Ïªº«ü¼Ğ
-    property EchoReply: PIcmpEchoReplyEx read GetEchoReplyPtr;  // ³q¥Î
-    property EchoReplyV4: PIcmpEchoReply read GetEchoReplyV4;   // ¥u¤ä´© IPv4
-    property EchoReplyV6: PIcmpV6EchoReply read GetEchoReplyV6; // ¥u¤ä´© IPv6
+    // å–å¾—æ¥æ”¶ç·©è¡å€çš„æŒ‡æ¨™
+    property EchoReply: PIcmpEchoReplyEx read GetEchoReplyPtr;  // é€šç”¨
+    property EchoReplyV4: PIcmpEchoReply read GetEchoReplyV4;   // åªæ”¯æ´ IPv4
+    property EchoReplyV6: PIcmpV6EchoReply read GetEchoReplyV6; // åªæ”¯æ´ IPv6
   end;
 
 
@@ -435,10 +435,10 @@ end;
 
 function TPing.GetLossRate: Single;
 begin
-  if FLost = 0 then
-    Result := 0
+  if (FTimes <> 0) and (FTimes >= FFails) then
+    Result := FFails / FTimes * 100
   else
-    Result := FLost / (FTimes - FFails) * 100;
+    Result := 0;
 end;
 
 function TPing.GetAverage: Single;
@@ -446,10 +446,10 @@ var
   Successes: Cardinal;
 begin
   Successes := FTimes - FFails;
-  if Successes = 0 then
-    Result := 0
+  if Successes <> 0 then
+    Result := FEchoCumulant / Successes
   else
-    Result := FEchoCumulant / Successes;
+    Result := 0;
 end;
 
 function TPing.CalcReplySize(RequestSize: DWORD): DWORD;
@@ -766,15 +766,15 @@ begin
                errUnsupportedFamily, [GetFamilyStr(FFamily, True)]);
   end;
 
-  if Result = 0 then         // ¦pªG¦^¶ÇµªÀ³¼Æ¬° 0
-    FError := GetLastError   // ¨ú±o¿ù»~½X
+  if Result = 0 then         // å¦‚æœå›å‚³ç­”æ‡‰æ•¸ç‚º 0
+    FError := GetLastError   // å–å¾—éŒ¯èª¤ç¢¼
   else
-    FError := ERROR_SUCCESS; // ³]©w¬° ERROR_SUCCESS(µL¿ù»~)
+    FError := ERROR_SUCCESS; // è¨­å®šç‚º ERROR_SUCCESS(ç„¡éŒ¯èª¤)
 
   Inc(FTimes);
   case Code of
   IP_SUCCESS:
-    if FError = ERROR_SUCCESS then // §ó·s¦^À³®É¶¡ªº²Î­pª¬ºA
+    if FError = ERROR_SUCCESS then // æ›´æ–°å›æ‡‰æ™‚é–“çš„çµ±è¨ˆç‹€æ…‹
     begin
       if RTT > FTimeoutMS then Inc(FTimeouts);
       if RTT < FEchoMin then FEchoMin := RTT;
@@ -783,22 +783,29 @@ begin
     end
     else
       Inc(FFails);
-  IP_REQ_TIMED_OUT:   // ¦^À³¶W®É
-    Inc(FTimeouts);
-  IP_BUF_TOO_SMALL,   // À³µª½w½Ä°Ï¤Ó¤p¡C
-  IP_NO_RESOURCES,    // IP ¸ê·½¤£¨¬¡C
-  IP_BAD_OPTION,      // «ü©w¤F¿ù»~ªºIP¿ï¶µ¡C
-  IP_HW_ERROR,        // µo¥ÍµwÅé¿ù»~¡C
-  IP_PACKET_TOO_BIG,  // «Ê¥]¤Ó¤j¡C
-  IP_BAD_REQ,         // ¤@­Ó¿ù»~ªº½Ğ¨D¡C
-  IP_BAD_ROUTE,       // ¤@±øÁV¿|ªº¸ô½u¡C
-  IP_PARAM_PROBLEM,   // °Ñ¼Æ°İÃD¡C
-  IP_OPTION_TOO_BIG,  // IP¿ï¶µ¤Ó¤j¡C
-  IP_BAD_DESTINATION, // ¤@­ÓÁV¿|ªº¥Øªº¦a¡C
-  IP_GENERAL_FAILURE: // ¤@¯ë¬G»Ù¡C¹ï©ó¬Y¨Ç®æ¦¡¿ù»~ªºICMP¸ê®Æ¥]¥i¯à·|¦^¶Ç¦¹¿ù»~¡C
+  IP_REQ_TIMED_OUT:   // å›æ‡‰è¶…æ™‚
+  begin
     Inc(FFails);
-  else
     Inc(FLost);
+    Inc(FTimeouts);
+  end;
+//  IP_BUF_TOO_SMALL,   // æ‡‰ç­”ç·©è¡å€å¤ªå°ã€‚
+//  IP_NO_RESOURCES,    // IP è³‡æºä¸è¶³ã€‚
+//  IP_BAD_OPTION,      // æŒ‡å®šäº†éŒ¯èª¤çš„IPé¸é …ã€‚
+//  IP_HW_ERROR,        // ç™¼ç”Ÿç¡¬é«”éŒ¯èª¤ã€‚
+//  IP_PACKET_TOO_BIG,  // å°åŒ…å¤ªå¤§ã€‚
+//  IP_BAD_REQ,         // ä¸€å€‹éŒ¯èª¤çš„è«‹æ±‚ã€‚
+//  IP_BAD_ROUTE,       // ä¸€æ¢ç³Ÿç³•çš„è·¯ç·šã€‚
+//  IP_PARAM_PROBLEM,   // åƒæ•¸å•é¡Œã€‚
+//  IP_OPTION_TOO_BIG,  // IPé¸é …å¤ªå¤§ã€‚
+//  IP_BAD_DESTINATION, // ä¸€å€‹ç³Ÿç³•çš„ç›®çš„åœ°ã€‚
+//  IP_GENERAL_FAILURE: // ä¸€èˆ¬æ•…éšœã€‚å°æ–¼æŸäº›æ ¼å¼éŒ¯èª¤çš„ICMPè³‡æ–™åŒ…å¯èƒ½æœƒå›å‚³æ­¤éŒ¯èª¤ã€‚
+//    Inc(FFails);
+  else
+  begin
+    Inc(FFails);
+    Inc(FLost);
+  end;
   end;
 end;
 

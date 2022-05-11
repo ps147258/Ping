@@ -1,4 +1,4 @@
-// Type: Windows network API addresses.
+ï»¿// Type: Windows network API addresses.
 // Author: 2022 Wei-Lun Huang
 // Description: Addresses structure and some function for the Windows API structure.
 //
@@ -145,7 +145,7 @@ type
     _AAF_FirstDnsSuffix
   );
 
-  // ºô¸ô¦ì§} (¶È¸ê®Æ¤£¾A¦Xª½±µ¨Ï¥Î¡AÀ³¸Ó°t¦X ªø«× ©Î Family)
+  // ç¶²è·¯ä½å€ (åƒ…è³‡æ–™ä¸é©åˆç›´æ¥ä½¿ç”¨ï¼Œæ‡‰è©²é…åˆ é•·åº¦ æˆ– Family)
   PAddrBytes = ^TAddrBytes;
   TAddrBytes = packed record
     case Integer of
@@ -153,7 +153,7 @@ type
       1: (v6: IN6_ADDR);
   end;
 
-  // IPv6 ªº³s±µ¦ì§}¸ê°T¡AµL Family (¦]¬° Delphi 11 »P§ó¦­ªºª©¥»¦ü¥G¨S¦³©w¸q IPV6_ADDRESS_EX)
+  // IPv6 çš„é€£æ¥ä½å€è³‡è¨Šï¼Œç„¡ Family (å› ç‚º Delphi 11 èˆ‡æ›´æ—©çš„ç‰ˆæœ¬ä¼¼ä¹æ²’æœ‰å®šç¾© IPV6_ADDRESS_EX)
   PIPV6_ADDRESS_EX = ^IPV6_ADDRESS_EX;
   IPV6_ADDRESS_EX = packed record
     sin6_port: USHORT;    // USHORT sin6_port;
@@ -164,7 +164,7 @@ type
   TIPv6AddressEx = IPV6_ADDRESS_EX;
   PIPv6AddressEx = ^TIPv6AddressEx;
 
-  // IPv6 ªº³s±µ¦ì§}¸ê°T¡A¥]§t Family (©w¸q¦b Indy ªº IdWinsock2 ¤¤)
+  // IPv6 çš„é€£æ¥ä½å€è³‡è¨Šï¼ŒåŒ…å« Family (å®šç¾©åœ¨ Indy çš„ IdWinsock2 ä¸­)
   sockaddr_in6 = packed record
     sin6_family   : Smallint; // AF_INET6
     sin6_port     : u_short;  // Transport level port number
@@ -175,7 +175,7 @@ type
   TSockaddrIn6 = sockaddr_in6;
   PSockaddrIn6 = ^TSockaddrIn6;
 
-  // IPv4 »P IPv6 ²V©Mµ²ºc (¥Î©ó¤è«Kªº¦s¨ú sockaddr)
+  // IPv4 èˆ‡ IPv6 æ··å’Œçµæ§‹ (ç”¨æ–¼æ–¹ä¾¿çš„å­˜å– sockaddr)
   PSockAddr = ^TSockAddr;
   TSockAddr = packed record
     case Integer of
@@ -198,7 +198,7 @@ type
     class operator Explicit(Value: PSockAddr): PSockaddrIn6; overload; inline;
   end;
 
-  // ªş¥[ªø«×ªº¦ì§}¸ê®Æ
+  // é™„åŠ é•·åº¦çš„ä½å€è³‡æ–™
   PSocketAddress = ^TSocketAddress;
   TSocketAddress = record
     Address: PSockAddr;
@@ -228,14 +228,14 @@ type
     function Add(const ASockAddr: Winapi.IpTypes.SOCKET_ADDRESS): Integer; overload;
   end;
 
-  // °t±µ¥dªº ¦ì§}¹ïÀ³ »P ¸ê°T
+  // é…æ¥å¡çš„ ä½å€å°æ‡‰ èˆ‡ è³‡è¨Š
   PAdapterAddress = ^TAdapterAddress;
   TAdapterAddress = packed record
     Data: Pointer;
     AdapterName: string;
     FriendlyName: string;
-    Unicast: TSockAddr;   // ³æ¼½¦ì§}¡AÀ³¬°¥»¾÷ IP
-    Gateway: TSockAddr;   // ¹h¹D¦ì§}¡Aºô¥d©Ò³s±µ³]³Æªº IP¡A¦p¤À¨É¾¹ IP
+    Unicast: TSockAddr;   // å–®æ’­ä½å€ï¼Œæ‡‰ç‚ºæœ¬æ©Ÿ IP
+    Gateway: TSockAddr;   // é–˜é“ä½å€ï¼Œç¶²å¡æ‰€é€£æ¥è¨­å‚™çš„ IPï¼Œå¦‚åˆ†äº«å™¨ IP
   end;
 
   TAdapterAddressList = class(TList<TAdapterAddress>)
@@ -251,7 +251,7 @@ type
 //    function Add(const Adapter: IP_ADAPTER_ADDRESSES): Integer; overload; inline;
   end;
 
-  // ¥h°£ addrinfo «á­±ªºÃìµ²µ²ºc
+  // å»é™¤ addrinfo å¾Œé¢çš„éˆçµçµæ§‹
   PAddrInfo = ^TAddrInfo;
   TAddrInfo = packed record
     flags: Integer;     // AI_PASSIVE, AI_CANONNAME, AI_NUMERICHOST
@@ -273,11 +273,11 @@ type
   end;
 
 const
-  _MaxIPv4String = 16; // IPv4 ªº³Ì¤j¦r¦êªø«×
-  _MaxIPv6String = 46; // IPv6 ªº³Ì¤j¦r¦êªø«×
+  _MaxIPv4String = 16; // IPv4 çš„æœ€å¤§å­—ä¸²é•·åº¦
+  _MaxIPv6String = 46; // IPv6 çš„æœ€å¤§å­—ä¸²é•·åº¦
 
 //
-// ±N ¦ì§}¸ê®Æ Âà´«¦¨ ¦r¦ê
+// å°‡ ä½å€è³‡æ–™ è½‰æ›æˆ å­—ä¸²
 //
 function AddressToString(const Address: Winapi.IpTypes.SOCKET_ADDRESS): string; overload;
 function AddressToString(const Address: TSockAddr): string; overload;
@@ -287,39 +287,39 @@ function AddressToString(const Address: in6_addr): string; overload;
 function AddressToString(const Address: IPV6_ADDRESS_EX): string; overload; inline;
 
 //
-// ±N ¦r¦ê Âà´«¦¨ ¦ì§}¸ê®Æ
+// å°‡ å­—ä¸² è½‰æ›æˆ ä½å€è³‡æ–™
 //
 function StringToAddress(const IP: string; var Address: Winapi.Winsock2.sockaddr): Boolean; overload;
 function StringToAddress(const IP: string; var Address: Winapi.IpTypes.sockaddr): Boolean; overload; inline;
 function StringToAddress(const IP: string; var Address: TSockAddr): Boolean; overload; inline;
 
-// ¨ú±o¥D¾÷ªº¦ì§}¦Cªí¡AµL¦Cªí«h¦^¶Ç nil
+// å–å¾—ä¸»æ©Ÿçš„ä½å€åˆ—è¡¨ï¼Œç„¡åˆ—è¡¨å‰‡å›å‚³ nil
 function GetHostAddress(const Hints: TAddrInfoW; const HostName: string; const ServiceName: string = ''): TAddrInfoList; overload;
 function GetHostAddress(const HostName: string; const ServiceName: string = ''): TAddrInfoList; overload;
 
-// Anst ¦r¦ê¤ñ¹ï¡A¥]§t¤j¤p¼g®t²§
-// ¦^¶Ç¡G®t²§¶q¡A0 ªí¥Ü¬Û¦P¡C
+// Anst å­—ä¸²æ¯”å°ï¼ŒåŒ…å«å¤§å°å¯«å·®ç•°
+// å›å‚³ï¼šå·®ç•°é‡ï¼Œ0 è¡¨ç¤ºç›¸åŒã€‚
 //function CompareWideStr(A, B: PWideChar): Integer; overload;
 //function CompareWideStr(A, B: PWideChar; MaxCount: Integer): Integer; overload;
 //function CompareAnsiStr(A, B: PAnsiChar): Integer; overload;
 //function CompareAnstStr(A, B: PAnsiChar; MaxCount: Integer): Integer; overload;
 
-// ¤ñ¹ï IP_ADDR_STRING ¤º®e¡A¦ı¤£¥]§t IP_ADDR_STRING.Next¡C
-// °Ñ¼Æ¡GSimplify ¦pªG¬° True «h¦b¥X²{®t²§®É¥ß§Y¸õ¥X¨Ã¦^¶Çµ²ªG¡C
-// ¦^¶Ç¡G¥X²{¬Û²§¾ÜºX¼Ğ·|³Q³]©w¡C
+// æ¯”å° IP_ADDR_STRING å…§å®¹ï¼Œä½†ä¸åŒ…å« IP_ADDR_STRING.Nextã€‚
+// åƒæ•¸ï¼šSimplify å¦‚æœç‚º True å‰‡åœ¨å‡ºç¾å·®ç•°æ™‚ç«‹å³è·³å‡ºä¸¦å›å‚³çµæœã€‚
+// å›å‚³ï¼šå‡ºç¾ç›¸ç•°æ“‡æ——æ¨™æœƒè¢«è¨­å®šã€‚
 function CompareIpAddrFirst(const A, B: IP_ADDR_STRING; Simplify: Boolean): TIpAddrFlags;
 
-// ¤ñ¹ï IP_ADDR_STRING ¤º®e¡A¥]§t IP_ADDR_STRING.Next »P¨ä«áÄòªº©Ò¦³¶µ¥Ø¡C
+// æ¯”å° IP_ADDR_STRING å…§å®¹ï¼ŒåŒ…å« IP_ADDR_STRING.Next èˆ‡å…¶å¾ŒçºŒçš„æ‰€æœ‰é …ç›®ã€‚
 function CompareIpAddrList(A, B: PIP_ADDR_STRING): Boolean;
 
-// ¤ñ¹ï TIpAdapterInfo ¤º®e¡A¦ı¤£¥]§t TIpAdapterInfo.Next¡C
-// °Ñ¼Æ¡GSimplify ¦pªG¬° True «h¦b¥X²{®t²§®É¥ß§Y¸õ¥X¨Ã¦^¶Çµ²ªG¡C
-// ¦^¶Ç¡G¥X²{¬Û²§¾ÜºX¼Ğ·|³Q³]©w¡C
+// æ¯”å° TIpAdapterInfo å…§å®¹ï¼Œä½†ä¸åŒ…å« TIpAdapterInfo.Nextã€‚
+// åƒæ•¸ï¼šSimplify å¦‚æœç‚º True å‰‡åœ¨å‡ºç¾å·®ç•°æ™‚ç«‹å³è·³å‡ºä¸¦å›å‚³çµæœã€‚
+// å›å‚³ï¼šå‡ºç¾ç›¸ç•°æ“‡æ——æ¨™æœƒè¢«è¨­å®šã€‚
 function CompareAdapterInfoFirst(const A, B: IP_ADAPTER_INFO; Simplify: Boolean): TAdapterInfoFlags;
 
-// ¤ñ¹ï TIpAdapterAddresses ¤º®e¡A¦ı¤£¥]§t TIpAdapterAddresses.Next¡C
-// °Ñ¼Æ¡GSimplify ¦pªG¬° True «h¦b¥X²{®t²§®É¥ß§Y¸õ¥X¨Ã¦^¶Çµ²ªG¡C
-// ¦^¶Ç¡G¥X²{¬Û²§¾ÜºX¼Ğ·|³Q³]©w¡C
+// æ¯”å° TIpAdapterAddresses å…§å®¹ï¼Œä½†ä¸åŒ…å« TIpAdapterAddresses.Nextã€‚
+// åƒæ•¸ï¼šSimplify å¦‚æœç‚º True å‰‡åœ¨å‡ºç¾å·®ç•°æ™‚ç«‹å³è·³å‡ºä¸¦å›å‚³çµæœã€‚
+// å›å‚³ï¼šå‡ºç¾ç›¸ç•°æ“‡æ——æ¨™æœƒè¢«è¨­å®šã€‚
 function CompareAdaptersAddressesFirst(const A, B: IP_ADAPTER_ADDRESSES; Simplify: Boolean): TAdapterAddrFlags;
 
 

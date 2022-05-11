@@ -1,4 +1,4 @@
-// Type: Adapter Selection form.
+ï»¿// Type: Adapter Selection form.
 // Author: 2022 Wei-Lun Huang
 // Description: Adapter Selection.
 //
@@ -36,18 +36,18 @@ type
     { Private declarations }
   public
     { Public declarations }
-    // AdapterAddresses ¤ÀÃş°t¹ï
+    // AdapterAddresses åˆ†é¡é…å°
     procedure OnAdapterDetected(ASender: TObject;
       State: TAdaptersInfoState; const AOld, ANew: TAdapterAddresses);
 
-    procedure OnAdapterChanged(Sender: TObject); // ¾ã²z¤¶­±²M³æ
-    procedure DoSelected;                        // ­Y¤w¿ï¾Ü«hªğ¦^
-    procedure RefreshAdapter;                    // ­«·s¾ã²z Adapter ¦Cªí
-    // ¨ú±o²M³æ¤¤ªº²Ä¤@µ§ (¦p¦³ IPv4 «hÀu¥ı)
+    procedure OnAdapterChanged(Sender: TObject); // æ•´ç†ä»‹é¢æ¸…å–®
+    procedure DoSelected;                        // è‹¥å·²é¸æ“‡å‰‡è¿”å›
+    procedure RefreshAdapter;                    // é‡æ–°æ•´ç† Adapter åˆ—è¡¨
+    // å–å¾—æ¸…å–®ä¸­çš„ç¬¬ä¸€ç­† (å¦‚æœ‰ IPv4 å‰‡å„ªå…ˆ)
     function GetFirstAddress(var Unicast, Gateway: TSockAddr): Boolean;
-    // ¨ú±o²M³æ¤¤«ü©w¯Á¤Şªº¶µ¥Ø
+    // å–å¾—æ¸…å–®ä¸­æŒ‡å®šç´¢å¼•çš„é …ç›®
     function GetAddress(Index: Integer; var Unicast, Gateway: TSockAddr): Boolean;
-    // ¨ú±o²M³æ¤¤¿ï¾Üªº¶µ¥Ø
+    // å–å¾—æ¸…å–®ä¸­é¸æ“‡çš„é …ç›®
     function GetSelect(var Unicast, Gateway: TSockAddr): Boolean;
   end;
 
@@ -101,8 +101,8 @@ var
   I, J: Integer;
 begin
 
-  UnicastList := TSockAddrList.Create; // ¥»¾÷¦ì§}Á{®É²M³æ (¤è«K«á­±ªºFamily°t¹ï)
-  GatewayList := TSockAddrList.Create; // ¹h¹D¦ì§}Á{®É²M³æ (¤è«K«á­±ªºFamily°t¹ï)
+  UnicastList := TSockAddrList.Create; // æœ¬æ©Ÿä½å€è‡¨æ™‚æ¸…å–® (æ–¹ä¾¿å¾Œé¢çš„Familyé…å°)
+  GatewayList := TSockAddrList.Create; // é–˜é“ä½å€è‡¨æ™‚æ¸…å–® (æ–¹ä¾¿å¾Œé¢çš„Familyé…å°)
   try
     case State of
       _AIM_Removed: p := @AOld;
@@ -113,7 +113,7 @@ begin
     AdapterName := string(p.AdapterName);
     FriendlyName := WideCharToString(p.FriendlyName);
 
-    // ±NUnicast¦ì§}²M³æ¤Æ(Á{®É²M³æ)
+    // å°‡Unicastä½å€æ¸…å–®åŒ–(è‡¨æ™‚æ¸…å–®)
     Unicast := p.FirstUnicastAddress;
     while Assigned(Unicast) do
     begin
@@ -127,7 +127,7 @@ begin
       Unicast := Unicast.Next;
     end;
 
-    // ±NGateway¦ì§}²M³æ¤Æ(Á{®É²M³æ)
+    // å°‡Gatewayä½å€æ¸…å–®åŒ–(è‡¨æ™‚æ¸…å–®)
     Gateway := p.FirstGatewayAddress;
     while Assigned(Gateway) do
     begin
@@ -137,7 +137,7 @@ begin
       Gateway := Gateway.Next;
     end;
 
-    // ·í State ¬°¤w²¾°£©ÎÅÜ§ó®É¡A§R°£ AdapterName ¹ïÀ³ªº AdapterAddress ¶µ¥Ø
+    // ç•¶ State ç‚ºå·²ç§»é™¤æˆ–è®Šæ›´æ™‚ï¼Œåˆªé™¤ AdapterName å°æ‡‰çš„ AdapterAddress é …ç›®
     case State of
       _AIM_Removed, _AIM_Changed:
       begin
@@ -150,9 +150,9 @@ begin
       end;
     end;
 
-    // ·í State ¬°·s¼W©ÎÅÜ§ó®É¡A±N¦ì§}»PFamily¬Û¹ïÀ³ªº¤è¦¡¥[¤J²M³æ
-    // ³q±`¤@­Ó Adapter ·|¦³¤@­Ó IPv4 ©Î IPv6 ©Î ¨âªÌ¬Ò¦³
-    // ¤]¤£±Æ°£·|¦³§ó¦h¡A¦ı¥Ø«e¥u°w¹ï¥u¦³¤@²Õ [IPv4] ©Î [IPv6] ©Î [IPv4 »P IPv6]
+    // ç•¶ State ç‚ºæ–°å¢æˆ–è®Šæ›´æ™‚ï¼Œå°‡ä½å€èˆ‡Familyç›¸å°æ‡‰çš„æ–¹å¼åŠ å…¥æ¸…å–®
+    // é€šå¸¸ä¸€å€‹ Adapter æœƒæœ‰ä¸€å€‹ IPv4 æˆ– IPv6 æˆ– å…©è€…çš†æœ‰
+    // ä¹Ÿä¸æ’é™¤æœƒæœ‰æ›´å¤šï¼Œä½†ç›®å‰åªé‡å°åªæœ‰ä¸€çµ„ [IPv4] æˆ– [IPv6] æˆ– [IPv4 èˆ‡ IPv6]
     case State of
       _AIM_Added, _AIM_Changed:
       begin
@@ -165,14 +165,14 @@ begin
           while J < GatewayList.Count do
           begin
             pGateway := @GatewayList.List[J];
-            // ·í Unicast »P Gateway ªº Family ¤£¬Û¦P®ÉÄ~Äò³B²z¤U¤@µ§ Gateway
+            // ç•¶ Unicast èˆ‡ Gateway çš„ Family ä¸ç›¸åŒæ™‚ç¹¼çºŒè™•ç†ä¸‹ä¸€ç­† Gateway
             if pUnicast.base.sin_family <> pGateway.base.sin_family then
             begin
               Inc(J);
               Continue;
             end;
-            // ·í Unicast »P Gateway ¦³¬Û¦Pªº Family ®Éµø¬°¤@²Õ±N¨ä¥[¤J²M³æ
-            // µM«á§R°£¥H¥[¤J AdapterAddressList ªº Unicast »P Gateway Á{®É²M³æ
+            // ç•¶ Unicast èˆ‡ Gateway æœ‰ç›¸åŒçš„ Family æ™‚è¦–ç‚ºä¸€çµ„å°‡å…¶åŠ å…¥æ¸…å–®
+            // ç„¶å¾Œåˆªé™¤ä»¥åŠ å…¥ AdapterAddressList çš„ Unicast èˆ‡ Gateway è‡¨æ™‚æ¸…å–®
             AdapterAddressList.Add(AdapterName, FriendlyName, pUnicast^, pGateway^);
             UnicastList.Delete(I);
             GatewayList.Delete(J);
@@ -220,15 +220,15 @@ begin
     sGateway := AddressToString(p.Gateway);
 
     //
-    // ¤U­±·j´M Group »P Item ¦U¨Ï¥Î¨â¦¸°j°é­ì·N¬O¥´ºâ¥Hµ{¦¡½Xªø«×´«¨ú
-    // ¬Y¨Çª¬ªp¤U®Éªº®Ä²v¼W¶i¡A
-    // ¥H¤W¤@¦¸ªº¯Á¤Ş§@¬°°_©l·j´M¤@¦¸¡A¦p¨S§ä¨ì«h¦A¥Ñ0·j¨ì°±¤î«e¤@­Óªº¦ì¸m¡C
-    // ¦ı¤@¥x¹q¸£¤¤³q±`¤£·|¦³¤Ó¦hªº ºô¸ô°t±µ¥d(Adapter) »P ¥»¾÷ºô¸ôªº¨Ó·½³q°T¦ì¸m¡A
-    // ¦]¦¹¥¼¨Ó¤]¥i¯à·|°µ­×§ï¡C
+    // ä¸‹é¢æœå°‹ Group èˆ‡ Item å„ä½¿ç”¨å…©æ¬¡è¿´åœˆåŸæ„æ˜¯æ‰“ç®—ä»¥ç¨‹å¼ç¢¼é•·åº¦æ›å–
+    // æŸäº›ç‹€æ³ä¸‹æ™‚çš„æ•ˆç‡å¢é€²ï¼Œ
+    // ä»¥ä¸Šä¸€æ¬¡çš„ç´¢å¼•ä½œç‚ºèµ·å§‹æœå°‹ä¸€æ¬¡ï¼Œå¦‚æ²’æ‰¾åˆ°å‰‡å†ç”±0æœåˆ°åœæ­¢å‰ä¸€å€‹çš„ä½ç½®ã€‚
+    // ä½†ä¸€å°é›»è…¦ä¸­é€šå¸¸ä¸æœƒæœ‰å¤ªå¤šçš„ ç¶²è·¯é…æ¥å¡(Adapter) èˆ‡ æœ¬æ©Ÿç¶²è·¯çš„ä¾†æºé€šè¨Šä½ç½®ï¼Œ
+    // å› æ­¤æœªä¾†ä¹Ÿå¯èƒ½æœƒåšä¿®æ”¹ã€‚
     //
 
     //
-    // Adapter ¸s²Õ
+    // Adapter ç¾¤çµ„
     //
 
     GroupId := -1;
@@ -271,7 +271,7 @@ begin
     end;
 
     //
-    // Address ¦Cªí
+    // Address åˆ—è¡¨
     //
 
     b := True;
@@ -325,7 +325,7 @@ begin
   end;
 
   //
-  // ²M°£¤w¤£¦s¦bªºf¸s²Õ»P¶µ¥Ø
+  // æ¸…é™¤å·²ä¸å­˜åœ¨çš„fç¾¤çµ„èˆ‡é …ç›®
   //
 
   for I := GroupCount - 1 downto 0 do

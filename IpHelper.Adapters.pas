@@ -1,4 +1,4 @@
-// Type: Windows network API Adapters.
+ï»¿// Type: Windows network API Adapters.
 // Author: 2022 Wei-Lun Huang
 // Description: Retrieves the addresses associated with the adapters on the local computer.
 //
@@ -58,7 +58,7 @@ type
   TAdapterChangedEvent = procedure(ASender: TObject; State: TAdaptersInfoState;
     const AOld, ANew: TAdapterAddresses) of object;
 
-  // ºô¸ô°t±µ¥d¸ê°T¡A¶È¥Î©ó¦P¨B¤£¦P°õ¦æÄò¶¡ªº¸ê®Æ¦s¨ú
+  // ç¶²è·¯é…æ¥å¡è³‡è¨Šï¼Œåƒ…ç”¨æ–¼åŒæ­¥ä¸åŒåŸ·è¡ŒçºŒé–“çš„è³‡æ–™å­˜å–
   TAdapterAddrSync = record
     State: TAdaptersInfoState;
     DataOld: PAdapterAddresses;
@@ -73,8 +73,8 @@ type
 
   TAdaptersAddressesProc = reference to procedure (Sender: TObject; var Buffer: TArray<Byte>; Size: ULONG; ErroCode: DWORD);
 
-  // °õ¦æ Windows API GetAdaptersAddresses ªº°õ¦æÄò¡A¦]¬°©Ò»İ®É¶¡¸ûªø¡A
-  // ¦Ó¸Ó¨ç¼Æ³q±`»İ­n©ó­I´º¹B§@¡A¦]¦¹¥H TThread ¨Ó¤è«K¨Ï¥Î¡C
+  // åŸ·è¡Œ Windows API GetAdaptersAddresses çš„åŸ·è¡ŒçºŒï¼Œå› ç‚ºæ‰€éœ€æ™‚é–“è¼ƒé•·ï¼Œ
+  // è€Œè©²å‡½æ•¸é€šå¸¸éœ€è¦æ–¼èƒŒæ™¯é‹ä½œï¼Œå› æ­¤ä»¥ TThread ä¾†æ–¹ä¾¿ä½¿ç”¨ã€‚
   TAdapterScanThread = class(TThread)
   private
     FFinishProc: TAdaptersAddressesProc;
@@ -100,25 +100,25 @@ type
 
   TAdaptersInfoPointerList = TList<PAdapterAddresses>;
 
-  // ºô¸ô°t±µ¥d¸ê°T
+  // ç¶²è·¯é…æ¥å¡è³‡è¨Š
   TAdaptersInfo = class(TComponent)
   private const
-    _DefaultIntervalMS = 3000; // ¹w³]ªº±½´y¶¡¹j(²@¬í)
-    _MaxScanTimerMS = 50;      // ÀË¬d°õ¦æÄòª¬ºAªº­p®É¾¹¶¡¹j(²@¬í)
+    _DefaultIntervalMS = 3000; // é è¨­çš„æƒæé–“éš”(æ¯«ç§’)
+    _MaxScanTimerMS = 50;      // æª¢æŸ¥åŸ·è¡ŒçºŒç‹€æ…‹çš„è¨ˆæ™‚å™¨é–“éš”(æ¯«ç§’)
   private
-    FFamily: ULONG;                    // GetAdaptersAddresses ªº¥Ø¼Ğ IP Ãş«¬
-    FFlags: DWORD;                     // GetAdaptersAddresses ªº¬d¸ß¤è¦¡
-    FBuffer: TAdapterBuffer;           // GetAdaptersAddresses ¦^¶Ç¦hµ§ IP_ADAPTER_ADDRESSES ªº½w½Ä°Ï
-    FList: TAdaptersInfoPointerList;   // °t±µ¥d¸ê°T«ü¼Ğ²M³æ«ü¦V FBuffer ¤¤ªº¨C¤@µ§ IP_ADAPTER_ADDRESSES
-    FSyncBuffer: TAdapterAddrSync;     // °õ¦æÄò¸ê®Æ¦P¨B¥Îªº½w½Ä°Ï
-    FOnDetected: TAdapterChangedEvent; // µo²{¨C¤@µ§ ºô¸ô°t±µ¥d¸ê°T ªº°Ê§@
-    FOnChanged: TNotifyEvent;          // ¦pªGµo²{¦³ÅÜ§óªº°Ê§@
-    FScanIntervalMS: DWORD;            // ±½´y¶¡®æ
-    FTimeoutStamp: DWORD;              // ¤º³¡¨Ï¥Îªº°õ¦æ¶W®É®É¶¡ÂI
-    FTimer: TTimer;                    // ¥Î©óÀË¬d¤º³¡°õ¦æÄò¹B§@ª¬ºA
-    FActive: Boolean;                  // ±½´y¬O§_³B©ó¹B§@¤¤
-    FManualRefresh: Boolean;           // ¼Ğ°O¬O§_³B©ó¤â°Ê§ó·s (°õ¦æÄò·|µ¥«İ¤l°õ¦æÄò°õ¦æµ²§ô)
-    FScanner: TAdapterScanThread;      // ¹B§@ GetAdaptersAddresses ªº°õ¦æÄò
+    FFamily: ULONG;                    // GetAdaptersAddresses çš„ç›®æ¨™ IP é¡å‹
+    FFlags: DWORD;                     // GetAdaptersAddresses çš„æŸ¥è©¢æ–¹å¼
+    FBuffer: TAdapterBuffer;           // GetAdaptersAddresses å›å‚³å¤šç­† IP_ADAPTER_ADDRESSES çš„ç·©è¡å€
+    FList: TAdaptersInfoPointerList;   // é…æ¥å¡è³‡è¨ŠæŒ‡æ¨™æ¸…å–®æŒ‡å‘ FBuffer ä¸­çš„æ¯ä¸€ç­† IP_ADAPTER_ADDRESSES
+    FSyncBuffer: TAdapterAddrSync;     // åŸ·è¡ŒçºŒè³‡æ–™åŒæ­¥ç”¨çš„ç·©è¡å€
+    FOnDetected: TAdapterChangedEvent; // ç™¼ç¾æ¯ä¸€ç­† ç¶²è·¯é…æ¥å¡è³‡è¨Š çš„å‹•ä½œ
+    FOnChanged: TNotifyEvent;          // å¦‚æœç™¼ç¾æœ‰è®Šæ›´çš„å‹•ä½œ
+    FScanIntervalMS: DWORD;            // æƒæé–“æ ¼
+    FTimeoutStamp: DWORD;              // å…§éƒ¨ä½¿ç”¨çš„åŸ·è¡Œè¶…æ™‚æ™‚é–“é»
+    FTimer: TTimer;                    // ç”¨æ–¼æª¢æŸ¥å…§éƒ¨åŸ·è¡ŒçºŒé‹ä½œç‹€æ…‹
+    FActive: Boolean;                  // æƒææ˜¯å¦è™•æ–¼é‹ä½œä¸­
+    FManualRefresh: Boolean;           // æ¨™è¨˜æ˜¯å¦è™•æ–¼æ‰‹å‹•æ›´æ–° (åŸ·è¡ŒçºŒæœƒç­‰å¾…å­åŸ·è¡ŒçºŒåŸ·è¡ŒçµæŸ)
+    FScanner: TAdapterScanThread;      // é‹ä½œ GetAdaptersAddresses çš„åŸ·è¡ŒçºŒ
 
     procedure OnTimer(Sender: TObject);
 
@@ -146,7 +146,7 @@ type
     constructor Create(AOwner: TComponent; Active: Boolean = True); reintroduce;
     destructor Destroy; override;
 
-    procedure Refresh; // ¨ú±o³Ì·s¸ê°T
+    procedure Refresh; // å–å¾—æœ€æ–°è³‡è¨Š
 
     property Family: ULONG read FFamily write SetFamily;
     property Flags: DWORD read FFlags write SetFlags;
@@ -198,9 +198,9 @@ procedure TAdapterScanThread.Execute;
 var
   pBuf: PIP_ADAPTER_ADDRESSES;
 begin
-  // ¹w³]¼È¦s°Ï¤j¤p
+  // é è¨­æš«å­˜å€å¤§å°
   FSize := Max(Length(FBuffer), SizeOf(IP_ADAPTER_ADDRESSES));
-  // «Ø¥ß¼È¦s°Ï¨Ã¨ú±o¸ê°T
+  // å»ºç«‹æš«å­˜å€ä¸¦å–å¾—è³‡è¨Š
   repeat
     SetLength(FBuffer, FSize);
     pBuf := PIP_ADAPTER_ADDRESSES(PByte(FBuffer));
@@ -367,12 +367,12 @@ var
   DiffFlags: TAdapterAddrFlags;
 begin
   case ErroCode of
-    ERROR_SUCCESS: // ¦¨¥\
+    ERROR_SUCCESS: // æˆåŠŸ
     begin
       pNew := PAdapterAddresses(PByte(Buffer));
       OldCount := FList.Count;
       if OldCount > 0 then
-      begin // »P¤w¦s¦bªº²M³æ°µ¤ñ¹ï
+      begin // èˆ‡å·²å­˜åœ¨çš„æ¸…å–®åšæ¯”å°
         IsChange := False;
         Table := TAdaptersInfoTable.Create;
         try
@@ -381,7 +381,7 @@ begin
           TableList := PAdapterAddrSync(Table.List);
 
           //
-          // ªì©l¼Ğ°O²M°£ºX¼Ğ
+          // åˆå§‹æ¨™è¨˜æ¸…é™¤æ——æ¨™
           //
           for I := 0 to OldCount - 1 do
           begin
@@ -394,7 +394,7 @@ begin
           end;
 
           //
-          // ¦pªG¦³¤w¦³¬Û¦P°t±µ¥d¦WºÙ¦s¦b¡A«h¤ñ¹ï»P³]©w ¬Û¦P ©Î¬O ÅÜ§ó ªººX¼Ğ
+          // å¦‚æœæœ‰å·²æœ‰ç›¸åŒé…æ¥å¡åç¨±å­˜åœ¨ï¼Œå‰‡æ¯”å°èˆ‡è¨­å®š ç›¸åŒ æˆ–æ˜¯ è®Šæ›´ çš„æ——æ¨™
           //
           OldCount := FList.Count;
           J := OldCount;
@@ -410,17 +410,17 @@ begin
               pCurrOld := ItemState.DataOld;
               if ItemState.State <> _AIM_Removed then
                 Continue;
-              // ¤ñ¹ï AdaptersAddresses¡A¦pªG¶µ¥Ø¤£¬Û¦P«h·|³]©w¸Ó¶µ¥ØªººX¼Ğ¡C
-              // Simplify = True ¹J¨ì¬Û²§«h¥ß§Y°h¥X¨Ã¦^¶ÇºX¼Ğ¡C
+              // æ¯”å° AdaptersAddressesï¼Œå¦‚æœé …ç›®ä¸ç›¸åŒå‰‡æœƒè¨­å®šè©²é …ç›®çš„æ——æ¨™ã€‚
+              // Simplify = True é‡åˆ°ç›¸ç•°å‰‡ç«‹å³é€€å‡ºä¸¦å›å‚³æ——æ¨™ã€‚
               DiffFlags := CompareAdaptersAddressesFirst(pCurrOld^, pCurrNew^, True);
-              if DiffFlags = [] then // ¥ş³¡¬Û¦P
+              if DiffFlags = [] then // å…¨éƒ¨ç›¸åŒ
               begin
                 IsNew := False;
                 ItemState.State := _AIM_Same;
                 ItemState.DataNew := pCurrNew;
                 Break;
               end;
-              if not (_AAF_AdapterName in DiffFlags) then // °t±µ¥d¦WºÙ¬Û¦P
+              if not (_AAF_AdapterName in DiffFlags) then // é…æ¥å¡åç¨±ç›¸åŒ
               begin
                 IsChange := True;
                 IsNew := False;
@@ -442,7 +442,7 @@ begin
           end;
 
           //
-          // ¦p¦³²§°Ê«h§ó·s²M³æ¸ê°T
+          // å¦‚æœ‰ç•°å‹•å‰‡æ›´æ–°æ¸…å–®è³‡è¨Š
           //
           if IsChange then
           begin
@@ -457,14 +457,14 @@ begin
               {$POINTERMATH OFF}
 
               case FSyncBuffer.State of
-                _AIM_Removed: FList.Delete(J); // §R°£¶µ¥Ø¡A¦ıºû«ù²M³æ¯Á¤Ş¦ì¸m
+                _AIM_Removed: FList.Delete(J); // åˆªé™¤é …ç›®ï¼Œä½†ç¶­æŒæ¸…å–®ç´¢å¼•ä½ç½®
                 _AIM_Added:
-                begin // ¼W¥[¶µ¥Ø¡A«e©¹¤U¤@­Ó²M³æ¯Á¤Ş
+                begin // å¢åŠ é …ç›®ï¼Œå‰å¾€ä¸‹ä¸€å€‹æ¸…å–®ç´¢å¼•
                   FList.Add(FSyncBuffer.DataNew);
                   Inc(J);
                 end;
                 _AIM_Changed, _AIM_Same:
-                begin // ÂĞ»\¶µ¥Ø¡A«e©¹¤U¤@­Ó²M³æ¯Á¤Ş
+                begin // è¦†è“‹é …ç›®ï¼Œå‰å¾€ä¸‹ä¸€å€‹æ¸…å–®ç´¢å¼•
                   FList.Items[J] := FSyncBuffer.DataNew;
                   Inc(J);
                 end;
@@ -483,7 +483,7 @@ begin
         end;
       end
       else
-      begin // «Ø¥ß²M³æ¨Ã±N¸ê°T¶ñ¤J¦Ü²M³æ
+      begin // å»ºç«‹æ¸…å–®ä¸¦å°‡è³‡è¨Šå¡«å…¥è‡³æ¸…å–®
         try
           FBuffer := Buffer;
           pCurrNew := pNew;
@@ -500,7 +500,7 @@ begin
       end;
     end;
 
-    ERROR_NO_DATA: // µL¥ô¦ó¤¶­±¥d¸ê°T
+    ERROR_NO_DATA: // ç„¡ä»»ä½•ä»‹é¢å¡è³‡è¨Š
     begin
       OldCount := FList.Count;
       if OldCount > 0 then
@@ -516,7 +516,7 @@ begin
       end;
     end;
 
-    else RaiseLastOSError; // ­Y¥¢±Ñ«h²£¥Í¨Ò¥~
+    else RaiseLastOSError; // è‹¥å¤±æ•—å‰‡ç”¢ç”Ÿä¾‹å¤–
   end;
 end;
 
@@ -547,7 +547,7 @@ end;
 procedure TAdaptersInfo.Refresh;
 begin
   if FActive then
-  begin // ·í´`Àô±½´y±Ò°Ê®Éµ¥«İ¥¿¦b³B²zªº±½´yµ²§ô
+  begin // ç•¶å¾ªç’°æƒæå•Ÿå‹•æ™‚ç­‰å¾…æ­£åœ¨è™•ç†çš„æƒæçµæŸ
     if IsScanning then
     begin
       if Assigned(FScanner) then
@@ -556,7 +556,7 @@ begin
     end;
   end
   else
-  begin // ·í¤£¦b´`Àô±½®É¨Ï¥Î«Ø¥ß·sªº±½´y°õ¦æÄò¡A¨Ã¥Bµ¥«İ§¹¦¨
+  begin // ç•¶ä¸åœ¨å¾ªç’°æƒæ™‚ä½¿ç”¨å»ºç«‹æ–°çš„æƒæåŸ·è¡ŒçºŒï¼Œä¸¦ä¸”ç­‰å¾…å®Œæˆ
     FManualRefresh := True;
     try
       if Assigned(FScanner) then
