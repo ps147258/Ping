@@ -16,6 +16,8 @@ object Form1: TForm1
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
+  OnDeactivate = FormDeactivate
+  OnMouseLeave = FormMouseLeave
   OnShow = FormShow
   PixelsPerInch = 96
   DesignSize = (
@@ -352,13 +354,13 @@ object Form1: TForm1
     OnBeforeExecute = IdThreadComponent1BeforeExecute
     OnException = IdThreadComponent1Exception
     OnRun = IdThreadComponent1Run
-    Left = 32
+    Left = 48
     Top = 80
   end
   object BalloonHint1: TBalloonHint
     Style = bhsStandard
     Delay = 250
-    Left = 136
+    Left = 152
     Top = 80
   end
 end

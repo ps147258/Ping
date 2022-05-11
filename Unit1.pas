@@ -8,7 +8,7 @@
 //
 // Tested in Delphi 10 Seattle.
 //
-// Last modified date: May 7, 2022.
+// Last modified date: May 10, 2022.
 
 unit Unit1;
 
@@ -37,27 +37,31 @@ type
     Label3: TLabel;
     Edit1: TEdit;
     UpDown1: TUpDown;
-
     Label4: TLabel;
     Edit2: TEdit;
     UpDown2: TUpDown;
 
-    Button1: TButton;
-    Memo1: TMemo;
-    Series1: TLineSeries;
-    Chart1: TChart;
-    StatusBar1: TStatusBar;
-    Label6: TLabel;
-    Edit3: TEdit;
-    UpDown3: TUpDown;
     Label7: TLabel;
     Edit4: TEdit;
     UpDown4: TUpDown;
+    Label6: TLabel;
+    Edit3: TEdit;
+    UpDown3: TUpDown;
+
+    Button1: TButton;
+
+    Memo1: TMemo;
+    Series1: TLineSeries;
+    Chart1: TChart;
+
+    StatusBar1: TStatusBar;
     BalloonHint1: TBalloonHint;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure FormDeactivate(Sender: TObject);
+    procedure FormMouseLeave(Sender: TObject);
     procedure StatusBar1MouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure StatusBar1MouseLeave(Sender: TObject);
     procedure Chart1Resize(Sender: TObject);
@@ -75,33 +79,38 @@ type
     TStatusBarHint = (_SBH_Pings, _SBH_Fails, _SBH_Loss, _SBH_Rate, _SBH_Times, _SBH_Reply);
   private const
     cStatusBarHints: array[TStatusBarHint] of string = (
-      'Number of pings.',    // _SBH_Pings
-      'Number of failures.', // _SBH_Fails
-      'Number of loss.',     // _SBH_Loss
-      'Packet Loss Rate.',   // _SBH_Rate
-      'Timeout times.',      // _SBH_Times
-      'Response time.');     // _SBH_Reply
+      'Number of pings.',    // _SBH_Pings - 總數
+      'Number of failures.', // _SBH_Fails - API 失敗數
+      'Number of loss.',     // _SBH_Loss  - 回應失敗數
+      'Packet Loss Rate.',   // _SBH_Rate  - 回應失敗率
+      'Timeout times.',      // _SBH_Times - 超時數
+      'Response time.');     // _SBH_Reply - 回應時間狀態
   private
     { Private declarations }
     LastPingError: Cardinal;
-    LastStr1: string;
-    LastStr2: string;
-    LogsBuff: TStringList;
+    LastStr1: string; // 最後第一項的訊息
+    LastStr2: string; // 最後第二項的訊息
+    LogsBuff: TStringList; // 訊息緩衝，用於同步執行續
 
-    function IsMemoScrollBottom: Boolean;
+    procedure AddToComboBox(ComboBox: TComboBox; const s: string); inline;
+    procedure AddToComboBox1(const s: string); inline;
+    procedure AddToComboBox2(const s: string); inline;
+    procedure AddAdapterAddressesToComboBox;
+    function IsMemoScrollBottom: Boolean; // 取得 Memo1 檢視區是否處於最後一行
     function StatusPanel(ID: TStatusBarHint): TStatusPanel; inline;
-    function GetStatusIndexBy(X: Integer): Integer; inline;
-    procedure SetHistoryLength(NewLength: Integer);
-    procedure ResetHistory;
-    procedure SstControlEnabled(State: Boolean);
-    procedure RefreshSeriesPointer; inline;
+    function GetStatusIndexBy(X: Integer): Integer; inline; // 座標所指向的狀態欄位索引
+    procedure SetHistoryLength(NewLength: Integer); // 設定圖表表達長度
+    procedure ResetHistory;                         // 圖表保留長度但數值清除
+    procedure SstControlEnabled(State: Boolean);    // 部分介面停用或啟用
+    procedure RefreshSeriesPointer; inline;         // 以圖表節點密集度切換節點顯示
 
-    procedure FlushLogsBuff;
+    function InsertTimeStamp(const s: string): string; inline;
+    procedure FlushLogsBuff; // 將訊息緩衝排至 Memo1
 
-    procedure SyncOnBefore;
-    procedure SyncOnAfter;
-    procedure SyncOnBegin;
-    procedure SyncOnStatus;
+    procedure SyncOnBefore; // 執行續起始時
+    procedure SyncOnAfter;  // 執行續結束後
+    procedure SyncOnBegin;  // 執行續循環階段開始前
+    procedure SyncOnStatus; // 執行續循環階段結束後
   public
     { Public declarations }
   end;
@@ -112,23 +121,21 @@ var
 implementation
 
 uses
-  Unit2;//, HighAccuracyGauge;
+  Unit2;
 
 resourcestring
   errStatusHintOver = 'Value [%d] is outside the recognized range of type TStatusBarHint.';
 
 var
-  Ping: TPing = nil;
-  AppThread: THandle;
-  FormIP, ToIP: TSockAddr;
-  FormAddrStr, ToAddrStr: string;
-  TimeoutMS: DWORD = _DefaultTimeoutMS;
-  IntervalMS: DWORD = 1000;
-  RequestSize: DWORD = 32;
-  HistoryLength: Integer = 120;
-  Replies: DWORD;
-  LastTime: Cardinal;
-//  Gauge: TPerformanceGauge;
+  Ping: TPing = nil;                    // Windows API IcmpSendEcho 的包裝物件
+  FormIP, ToIP: TSockAddr;              // sockaddr 資訊
+  FormAddrStr, ToAddrStr: string;       // 位置字串
+  TimeoutMS: DWORD = _DefaultTimeoutMS; // API 超時時間(毫秒)
+  IntervalMS: DWORD = 1000;             // 執行間格(毫秒)
+  RequestSize: DWORD = 32;              // 要發送的測試訊息長度
+  HistoryLength: Integer = 120;         // 圖表長度
+  Replies: DWORD;                       // Ping API 的回應數
+  LastTime: Cardinal;                   // 下次更新的時間
 
 {$R *.dfm}
 
@@ -137,10 +144,10 @@ var
   AMajor, AMinor, ABuild: Cardinal;
 begin
   if GetProductVersion(ParamStr(0), AMajor, AMinor, ABuild) then
-    Caption := Format('%s v%u.%u.%u '+{$IFDEF WIN64}'Win64'{$ELSE}'Win32'{$ENDIF}, [Application.Title, AMajor, AMinor, ABuild]);
+    Caption := Format('%s v%u.%u.%u '+{$IFDEF WIN64}'Win64'{$ELSE}'Win32'{$ENDIF}, [Caption, AMajor, AMinor, ABuild]);
+
   LogsBuff := TStringList.Create;
   Ping := TPing.Create;
-  AppThread := GetCurrentThread;
   ComboBox1.Clear;
 
   TimeoutMS := UpDown1.Position;
@@ -163,6 +170,7 @@ var
   Unicast, Gateway: TSockAddr;
 begin
   Form2.RefreshAdapter;
+  AddAdapterAddressesToComboBox;
   if Form2.GetFirstAddress(Unicast, Gateway) then
   begin
     ComboBox1.Text := AddressToString(Unicast);
@@ -174,6 +182,16 @@ procedure TForm1.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   if Form2.Showing then
     Form2.ModalResult := mrCancel;
+end;
+
+procedure TForm1.FormDeactivate(Sender: TObject);
+begin
+  BalloonHint1.HideHint;
+end;
+
+procedure TForm1.FormMouseLeave(Sender: TObject);
+begin
+  BalloonHint1.HideHint;
 end;
 
 procedure TForm1.StatusBar1MouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
@@ -242,21 +260,68 @@ procedure TForm1.Button2Click(Sender: TObject);
 var
   Item: TListItem;
 begin
+  // 設定視窗為至於主視窗的中央
   Form2.Left := Self.Left + (Self.Width - Form2.Width) div 2;
   Form2.Top := Self.Top + (Self.Height - Form2.Height) div 2;
 
-  if Form2.ShowModal <> mrOk then
-    Exit;
+  try
+    // 呼叫顯示 通訊位址選擇視窗 與暫停此介面的處理，直至所呼叫的視窗關閉
+    if Form2.ShowModal <> mrOk then
+      Exit;
 
-  Item := Form2.ListView1.Selected;
-  if not Assigned(Item) then
-    Exit;
+    // 取得選擇的清單項目，不存在則退出處理
+    Item := Form2.ListView1.Selected;
+    if not Assigned(Item) then
+      Exit;
 
-  if Item.SubItems.Count < 1 then
-    raise Exception.Create('Adapter list error.');
+    // 如清單缺少子項目則發出例外
+    if Item.SubItems.Count < 1 then
+      raise Exception.Create('Adapter list error.');
+  finally
+    AddAdapterAddressesToComboBox;
+  end;
 
+  // 設定 來源 與 目地 位址
   ComboBox1.Text := Item.Caption;
   ComboBox2.Text := Item.SubItems[0];
+end;
+
+procedure TForm1.AddToComboBox(ComboBox: TComboBox; const s: string);
+begin
+  if ComboBox.Items.IndexOf(s) < 0 then
+    ComboBox.Items.Add(s);
+end;
+
+procedure TForm1.AddToComboBox1(const s: string);
+begin
+  AddToComboBox(ComboBox1, s);
+end;
+
+procedure TForm1.AddToComboBox2(const s: string);
+begin
+  AddToComboBox(ComboBox2, s);
+end;
+
+procedure TForm1.AddAdapterAddressesToComboBox;
+var
+  ListItems: TListItems;
+  ListItem: TListItem;
+  I: Integer;
+begin
+  ComboBox1.Items.BeginUpdate;
+  ComboBox2.Items.BeginUpdate;
+  try
+    ListItems := Form2.ListView1.Items;
+    for I := 0 to ListItems.Count - 1 do
+    begin
+      ListItem := ListItems[I];
+      AddToComboBox1(ListItem.Caption);
+      AddToComboBox2(ListItem.SubItems[0]);
+    end;
+  finally
+    ComboBox2.Items.EndUpdate;
+    ComboBox1.Items.EndUpdate;
+  end;
 end;
 
 function TForm1.IsMemoScrollBottom: Boolean;
@@ -312,7 +377,7 @@ begin
       Series1.Delete(NewLength, Count - NewLength)
     else if Count < NewLength then
       for I := Count to NewLength do
-        Series1.AddNull(I);//(I, -1, '', clRed);
+        Series1.AddNull(I);
   finally
     Series1.EndUpdate;
   end;
@@ -350,6 +415,13 @@ begin
   Series1.Pointer.Visible := (Chart1.ClientWidth div UpDown3.Position) > (Series1.Pointer.Size * 2 + 2);
 end;
 
+function TForm1.InsertTimeStamp(const s: string): string;
+const
+  cFormat = 'mm/dd hh:nn:ss.zzz ';
+begin
+  Result := FormatDateTime(cFormat, Now) + s;
+end;
+
 procedure TForm1.FlushLogsBuff;
 begin
   if LogsBuff.Count = 0 then
@@ -380,6 +452,7 @@ end;
 
 procedure TForm1.SyncOnAfter;
 begin
+  Memo1.Lines.Add(InsertTimeStamp('Terminated.'));
   FormAddrStr := '';
   ToAddrStr := '';
   Button1.Caption := 'Start';
@@ -390,16 +463,13 @@ procedure TForm1.SyncOnBegin;
 begin
   Memo1.Lines.BeginUpdate;
   try
-    FlushLogsBuff;
-    Memo1.Lines.Add(Format(
-      'Ping form %s to %s, Timeout %ums, Interval %ums.', [
-      AddressToString(FormIP), AddressToString(ToIP), TimeoutMS, IntervalMS]));
-    Memo1.Lines.Add(Format(
-      'Request size: %ubytes, Options: Ttl %d, Tos %d, Flags 0x%0.2X.', [
-      Ping.RequestSize, Ping.Options.Ttl, Ping.Options.Tos, Ping.Options.Flags]));
+    FlushLogsBuff; // 將所有日誌緩衝區的訊息全部輸入至 Memo1 中，然後清除日誌緩衝區
   finally
     Memo1.Lines.EndUpdate;
   end;
+
+  if not IdThreadComponent1.Terminated then
+    AddToComboBox2(ComboBox2.Text);
 end;
 
 procedure TForm1.SyncOnStatus;
@@ -408,34 +478,42 @@ var
   I, J: Integer;
   pReply: PIcmpEchoReplyEx;
   s: string;
-  function InsertTimeStamp(const s: string): string; inline;
-  const
-    cFormat = 'mm/dd hh:nn:ss.zzz ';
-  begin
-    Result := FormatDateTime(cFormat, Now) + s;
-  end;
   function GetRoundTripTimeStatus(const P: TPing): string; inline;
+  var
+    Min, Max, Average: string;
     function FormatRTT(Value: Word): string; overload; inline;
     begin
       if Value = 0 then
-        Result := '<1'
+        Result := '<1' // 只是表示最小無限接近 0 但不可能等於 0 而已
       else
         Result := Value.ToString;
     end;
   begin
-    Result := 'Min: '+FormatRTT(P.RttMin)+'ms, Max: '+FormatRTT(P.RttMax)+'ms, Average: '+
-      P.RttAverage.ToString(ffGeneral, 1, 3)+'ms';
+    if P.Times = 0 then
+      Exit('Min: ?ms, Max: ?ms, Average: ?ms');
+
+    Min := FormatRTT(P.RttMin);
+    Max := FormatRTT(P.RttMax);
+    Average := P.RttAverage.ToString(ffGeneral, 1, 3);
+    Result := Format('Min: %sms, Max: %sms, Average: %sms', [Min, Max, Average]);
   end;
 begin
-  s := Ping.ErrorMessage;
-  pReply := Ping.EchoReply;
+  s := Ping.ErrorMessage;   // 取得錯誤訊息
+  pReply := Ping.EchoReply; // 取得答應緩衝區指標
+
+  //
+  // 更新回應時間圖表
+  //
   Series1.BeginUpdate;
   try
+    // 往後移動舊的圖表
     for I := Series1.Count - 2 downto 0 do
     begin
       Series1.YValue[I + 1] := Series1.YValue[I];
       Series1.ValueColor[I + 1] := Series1.ValueColor[I];
     end;
+
+    // 取得回應時間
     I := -1;
     if s.IsEmpty then
     begin
@@ -445,6 +523,7 @@ begin
       end;
     end;
 
+    // 填入最新回應時間
     if I < 0 then
       Series1.SetNull(0)
     else
@@ -458,6 +537,7 @@ begin
 
   if s.IsEmpty then
   begin
+    // 回應結果的訊息
     case Ping.Family of
     AF_INET:
       s := Format(
@@ -472,8 +552,10 @@ begin
     end;
   end;
 
+  // 檢查目前 Memo1 檢視區域是否顯示最後一行
   Scrolling := IsMemoScrollBottom;
 
+  // 如果訊息發生異動，則顯示最新訊息，用於大幅減少紀錄
   Memo1.Lines.BeginUpdate;
   try
     J := Memo1.Lines.Count - 1;
@@ -484,19 +566,20 @@ begin
   finally
     Memo1.Lines.EndUpdate;
   end;
-
   LastStr2 := LastStr1;
   LastStr1 := s;
   LastPingError := Ping.Error;
 
+  // 如果原本檢視區域位置是處於最後一行則，重新捲動至最後一行
   if Scrolling then
     Memo1.Perform(EM_SCROLL, SB_BOTTOM, 0);
 
+  // 更新狀態顯示
   StatusBar1.Panels.BeginUpdate;
   try
     StatusPanel(_SBH_Pings).Text := 'Pings: ' + Ping.Times.ToString;
     StatusPanel(_SBH_Fails).Text := 'Fails: ' + Ping.Fails.ToString;
-    StatusPanel(_SBH_Loss).Text  := 'Lost: ' + Ping.Fails.ToString;
+    StatusPanel(_SBH_Loss).Text  := 'Lost: ' + Ping.Lost.ToString;
     StatusPanel(_SBH_Times).Text := 'Timeouts: ' + Ping.Timeouts.ToString;
     StatusPanel(_SBH_Rate).Text  := 'Loss: ' + Ping.LossRate.ToString(ffGeneral, 3, 0) + '%';
     StatusPanel(_SBH_Reply).Text := GetRoundTripTimeStatus(Ping);
@@ -518,18 +601,28 @@ var
   I: Integer;
   b: Boolean;
 begin
+  // 與主執行續同步，通知主執行續做初始化前的作業
   Sender.Synchronize(SyncOnBefore);
 
-  ToAddresses := nil;
   try
-    FillChar(FormIP, SizeOf(FormIP), 0);
-    if ToAddrStr.IsEmpty or not StringToAddress(FormAddrStr, FormIP) then
+    // 如果有沒有輸入 來源 位址則 標記此執行續停止 並 退出處理
+    if ToAddrStr.IsEmpty then
     begin
-      LogsBuff.Add('');
+      LogsBuff.Add('Missing input source or destination address.');
       Sender.Terminate;
       Exit;
     end;
 
+    // 如果 來源位址 轉換失敗則 標記此執行續停止 並 退出處理
+    FillChar(FormIP, SizeOf(FormIP), 0);
+    if not StringToAddress(FormAddrStr, FormIP) then
+    begin
+      LogsBuff.Add('Unable to get address data corresponding to source address string.');
+      Sender.Terminate;
+      Exit;
+    end;
+
+    // 如果目地 網域 或 位址 轉換至 sockaddr 結果為 0 則 標記此執行續停止 並 退出處理
     FillChar(ToIP, SizeOf(ToIP), 0);
     if not StringToAddress(ToAddrStr, ToIP) then
     begin
@@ -538,56 +631,68 @@ begin
       Hints.ai_socktype := SOCK_STREAM;
       Hints.ai_protocol := IPPROTO_TCP;
 
-      ToAddresses := GetHostAddress(Hints, ToAddrStr);
-      if not Assigned(ToAddresses) then
-      begin
-        Sender.Terminate;
-        Exit;
-      end;
+      ToAddresses := nil;
+      try
+        ToAddresses := GetHostAddress(Hints, ToAddrStr);
+        b := Assigned(ToAddresses);
+        if b then
+          b := ToAddresses.Count > 0;
 
-      case ToAddresses.Count of
-        0:
+        if not b then
         begin
-          ToIP := ToAddresses.List[0].addr;
-          LogsBuff.Add(Format(
-            'Domain %s IP[%d]: <No IP found with the same source family %s>.', [
-            ToAddrStr, ToAddresses.Count, GetFamilyStr(Hints.ai_family, True)]));
           Sender.Terminate;
+          LogsBuff.Add(Format(
+            'Domain %s IP: <No IP found with the same source family %s>.', [
+            ToAddrStr, GetFamilyStr(Hints.ai_family, True)]));
           Exit;
         end;
-        1:
-        begin
-          ToIP := ToAddresses.List[0].addr;
-          LogsBuff.Add(Format('Domain %s IP[%d]: %s', [ToAddrStr,
-            ToAddresses.Count, AddressToString(ToIP)]));
-        end;
-        else
-        begin
-          LogsBuff.Add(Format('Domain %s IP[%d]: ', [ToAddrStr, ToAddresses.Count]));
-          b := True;
-          for I := 0 to ToAddresses.Count - 1 do
+
+        case ToAddresses.Count of
+          1:
           begin
-            pInfo := @ToAddresses.List[I];
-            LogsBuff.Add(Format('%s', [AddressToString(pInfo.addr)]));
-            if b then
+            ToIP := ToAddresses.List[0].addr;
+            LogsBuff.Add(Format('Domain %s IP[%d]: %s', [ToAddrStr,
+              ToAddresses.Count, AddressToString(ToIP)]));
+          end;
+          else
+          begin
+            LogsBuff.Add(Format('Domain %s IP[%d]: ', [ToAddrStr, ToAddresses.Count]));
+            b := True;
+            for I := 0 to ToAddresses.Count - 1 do
             begin
-              b := False;
-              ToIP := pInfo.addr;
+              pInfo := @ToAddresses.List[I];
+              LogsBuff.Add(Format('%s', [AddressToString(pInfo.addr)]));
+              if b then
+              begin
+                b := False;
+                ToIP := pInfo.addr;
+              end;
             end;
           end;
         end;
+      finally
+        if Assigned(ToAddresses) then
+          FreeAndNil(ToAddresses);
       end;
     end;
+
+    //
+    // 設定 Ping 參數
+    //
+    Ping.TimeoutMS := TimeoutMS;
+    Ping.IcmpCreate(FormIP, ToIP);
+    Ping.CreatRequest(RequestSize);
+
+    LogsBuff.Add(Format(
+      'Ping form %s to %s, Timeout %ums, Interval %ums.', [
+      AddressToString(FormIP), AddressToString(ToIP), TimeoutMS, IntervalMS]));
+    LogsBuff.Add(Format(
+      'Request size: %ubytes, Options: Ttl %d, Tos %d, Flags 0x%0.2X.', [
+      Ping.RequestSize, Ping.Options.Ttl, Ping.Options.Tos, Ping.Options.Flags]));
   finally
-    if Assigned(ToAddresses) then
-      FreeAndNil(ToAddresses);
+    // 與主執行續同步，通知主執行續初始化作業結束
+    Sender.Synchronize(SyncOnBegin);
   end;
-
-  Ping.TimeoutMS := TimeoutMS;
-  Ping.IcmpCreate(FormIP, ToIP);
-  Ping.CreatRequest(RequestSize);
-
-  Sender.Synchronize(SyncOnBegin);
 
   LastTime := timeGetTime - IntervalMS;
 end;
@@ -596,8 +701,8 @@ procedure TForm1.IdThreadComponent1Run(Sender: TIdThreadComponent);
 var
   Curr, N: Cardinal;
 begin
+  // 取得時間並且計算時間長度
   Curr := timeGetTime;
-
   if Curr >= LastTime then
     N := Curr - LastTime
   else
@@ -607,11 +712,14 @@ begin
   begin
     Inc(LastTime, IntervalMS);
 
+    // 執行 Ping，結束後回傳 回應數
     Replies := Ping.SendEcho;
 
+    // 與主執行續同步，更新介面狀態
     IdThreadComponent1.Synchronize(SyncOnStatus);
   end;
 
+  // 暫停執行
   if IntervalMS < 200 then
     Sleep(IntervalMS div 4)
   else
@@ -620,7 +728,9 @@ end;
 
 procedure TForm1.IdThreadComponent1AfterExecute(Sender: TIdThreadComponent);
 begin
+  // 關閉 Ping 的 Icmp 通訊
   Ping.IcmpClose;
+  // 與主執行續同步，通知主執行續子執行續作業已完成
   Sender.Synchronize(SyncOnAfter);
 end;
 

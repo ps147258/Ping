@@ -18,10 +18,10 @@
 //      Compare multiple IP_ADDR_STRING structure information by the IP_ADDR_STRING pointer.
 //
 //   7. CompareAdapterInfoFirst
-//      Compare first IP_ADAPTER_INFO structure information by the IP_ADAPTER_INFO.
+//      Compare first IP_ADAPTER_INFO structure information.
 //
 //   8. CompareAdaptersAddressesFirst
-//      Compare first IP_ADAPTER_ADDRESSES structure information by the IP_ADAPTER_ADDRESSES.
+//      Compare first IP_ADAPTER_ADDRESSES structure information.
 //
 //   9. Add some structures, such as IPv6 structure.
 //
@@ -145,6 +145,7 @@ type
     _AAF_FirstDnsSuffix
   );
 
+  // 網路位址 (僅資料不適合直接使用，應該配合 長度 或 Family)
   PAddrBytes = ^TAddrBytes;
   TAddrBytes = packed record
     case Integer of
@@ -152,6 +153,7 @@ type
       1: (v6: IN6_ADDR);
   end;
 
+  // IPv6 的連接位址資訊，無 Family (因為 Delphi 11 與更早的版本似乎沒有定義 IPV6_ADDRESS_EX)
   PIPV6_ADDRESS_EX = ^IPV6_ADDRESS_EX;
   IPV6_ADDRESS_EX = packed record
     sin6_port: USHORT;    // USHORT sin6_port;
@@ -162,6 +164,7 @@ type
   TIPv6AddressEx = IPV6_ADDRESS_EX;
   PIPv6AddressEx = ^TIPv6AddressEx;
 
+  // IPv6 的連接位址資訊，包含 Family (定義在 Indy 的 IdWinsock2 中)
   sockaddr_in6 = packed record
     sin6_family   : Smallint; // AF_INET6
     sin6_port     : u_short;  // Transport level port number
@@ -172,6 +175,7 @@ type
   TSockaddrIn6 = sockaddr_in6;
   PSockaddrIn6 = ^TSockaddrIn6;
 
+  // IPv4 與 IPv6 混和結構 (用於方便的存取 sockaddr)
   PSockAddr = ^TSockAddr;
   TSockAddr = packed record
     case Integer of
@@ -194,6 +198,7 @@ type
     class operator Explicit(Value: PSockAddr): PSockaddrIn6; overload; inline;
   end;
 
+  // 附加長度的位址資料
   PSocketAddress = ^TSocketAddress;
   TSocketAddress = record
     Address: PSockAddr;
@@ -223,13 +228,14 @@ type
     function Add(const ASockAddr: Winapi.IpTypes.SOCKET_ADDRESS): Integer; overload;
   end;
 
+  // 配接卡的 位址對應 與 資訊
   PAdapterAddress = ^TAdapterAddress;
   TAdapterAddress = packed record
     Data: Pointer;
     AdapterName: string;
     FriendlyName: string;
-    Unicast: TSockAddr;
-    Gateway: TSockAddr;
+    Unicast: TSockAddr;   // 單播位址，應為本機 IP
+    Gateway: TSockAddr;   // 閘道位址，網卡所連接設備的 IP，如分享器 IP
   end;
 
   TAdapterAddressList = class(TList<TAdapterAddress>)
@@ -245,6 +251,7 @@ type
 //    function Add(const Adapter: IP_ADAPTER_ADDRESSES): Integer; overload; inline;
   end;
 
+  // 去除 addrinfo 後面的鏈結結構
   PAddrInfo = ^TAddrInfo;
   TAddrInfo = packed record
     flags: Integer;     // AI_PASSIVE, AI_CANONNAME, AI_NUMERICHOST
@@ -266,19 +273,27 @@ type
   end;
 
 const
-  _MaxIPv4String = 16;
-  _MaxIPv6String = 46;
+  _MaxIPv4String = 16; // IPv4 的最大字串長度
+  _MaxIPv6String = 46; // IPv6 的最大字串長度
 
+//
+// 將 位址資料 轉換成 字串
+//
 function AddressToString(const Address: Winapi.IpTypes.SOCKET_ADDRESS): string; overload;
 function AddressToString(const Address: TSockAddr): string; overload;
 function AddressToString(const Address: IPAddr): string; overload;
 function AddressToString(const Address: Winapi.IpExport.in_addr): string; overload; inline;
 function AddressToString(const Address: in6_addr): string; overload;
 function AddressToString(const Address: IPV6_ADDRESS_EX): string; overload; inline;
+
+//
+// 將 字串 轉換成 位址資料
+//
 function StringToAddress(const IP: string; var Address: Winapi.Winsock2.sockaddr): Boolean; overload;
 function StringToAddress(const IP: string; var Address: Winapi.IpTypes.sockaddr): Boolean; overload; inline;
 function StringToAddress(const IP: string; var Address: TSockAddr): Boolean; overload; inline;
 
+// 取得主機的位址列表，無列表則回傳 nil
 function GetHostAddress(const Hints: TAddrInfoW; const HostName: string; const ServiceName: string = ''): TAddrInfoList; overload;
 function GetHostAddress(const HostName: string; const ServiceName: string = ''): TAddrInfoList; overload;
 

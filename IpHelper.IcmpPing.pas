@@ -54,12 +54,14 @@ type
 //   IN ULONG Reserved
 //   );
 
-function IcmpCreateFile: THandle; stdcall;
+// IPv4 或 IPv6 通用
 function IcmpCloseHandle(icmpHandle: THandle): Boolean; stdcall;
+
+// IPv4
+function IcmpCreateFile: THandle; stdcall;
 function IcmpSendEcho(icmpHandle: THandle; DestinationAddress: TInAddr;
   RequestData: Pointer; RequestSize: Smallint; RequestOptions: PIP_OPTION_INFORMATION;
   ReplyBuffer: Pointer; ReplySize: DWORD; Timeout: DWORD): DWORD; stdcall;
-
 function IcmpSendEcho2Ex(
   icmpHandle        : THandle;  // [in]           HANDLE                 IcmpHandle,
   Event             : THandle;  // [in, optional] HANDLE                 Event,
@@ -75,8 +77,8 @@ function IcmpSendEcho2Ex(
   Timeout           : DWORD     // [in]           DWORD                  Timeout
   ): DWORD; stdcall;
 
+// IPv6
 function Icmp6CreateFile(): THandle; stdcall;
-
 function Icmp6SendEcho2(
   IcmpHandle        : THandle;// [in]           HANDLE                 IcmpHandle,
   Event             : THandle;// [in, optional] HANDLE                 Event,
@@ -91,6 +93,9 @@ function Icmp6SendEcho2(
   ReplySize         : DWORD;  // [in]           DWORD                  ReplySize,
   Timeout           : DWORD   // [in]           DWORD                  Timeout
 ): DWORD; stdcall;
+
+// 取得 狀態碼(型態IP_STATUS) 相對應的訊息
+function GetReplyStatusString(Status: ULONG): string;
 
 type
   PIcmpEchoReplyEx = ^TIcmpEchoReplyEx;
@@ -144,9 +149,9 @@ type
     FFails: Cardinal;        // SendEcho 的失敗次數
     FLost: Cardinal;         // SendEcho 回應的錯誤次數
     FTimeouts: Cardinal;     // SendEcho 的超時次數
-    FEchoCumulant: Cardinal; // RoundTripTime 的累計時間加總(ms)
     FEchoMin: Word;          // RoundTripTime 最小值(ms)
     FEchoMax: Word;          // RoundTripTime 最大值(ms)
+    FEchoCumulant: Cardinal; // RoundTripTime 的累計時間加總(ms)
     FhIcmp: THandle;         // ICMP echo 通訊控制
     FFamily: Smallint;       // 位址類型
     FWSAData: TWSAData;      // Winsock DLL 資訊
@@ -174,7 +179,6 @@ type
     function GetRoundTripTime: ULONG;                   // Get RTT(ms)
     function GetErrorMessage: string;                   // 依照系統地區語言取得錯誤訊息
 
-    procedure AddStatisticsRTT(RTT: ULONG); inline; // 以輸入的 RTT 更新 RTT 統計狀態
   public
     constructor Create; overload;
     constructor Create(const ASource, ADestination: TSockAddr; RequestSize: DWORD; ATimeoutMS: DWORD); overload;
@@ -248,6 +252,7 @@ type
     property EchoReplyV6: PIcmpV6EchoReply read GetEchoReplyV6; // 只支援 IPv6
   end;
 
+
 implementation
 
 //uses
@@ -260,24 +265,27 @@ implementation
 const
   iphlpapi = 'iphlpapi.dll';
 
-function IcmpCreateFile; external iphlpapi name 'IcmpCreateFile';
 function IcmpCloseHandle; external iphlpapi name 'IcmpCloseHandle';
+function IcmpCreateFile; external iphlpapi name 'IcmpCreateFile';
 function IcmpSendEcho; external iphlpapi name 'IcmpSendEcho';
 function IcmpSendEcho2Ex; external iphlpapi name 'IcmpSendEcho2Ex';
 function Icmp6CreateFile; external iphlpapi name 'Icmp6CreateFile';
 function Icmp6SendEcho2; external iphlpapi name 'Icmp6SendEcho2';
 
-// 取得 狀態碼(型態IP_STATUS) 相對應的訊息
 function GetReplyStatusString(Status: ULONG): string;
 var
   rCodr: DWORD;
   Len: DWORD;
 begin
   Len := 0;
-  repeat
-    rCodr := GetIpErrorString(Status, PChar(Result), Len);
+  rCodr := GetIpErrorString(Status, nil, Len);
+  if rCodr = ERROR_INSUFFICIENT_BUFFER then
+  begin
     SetLength(Result, Len);
-  until (rCodr <> ERROR_INSUFFICIENT_BUFFER);
+    rCodr := GetIpErrorString(Status, PChar(Result), Len);
+  end;
+  if rCodr <> NO_ERROR then
+    SetLength(Result, 0);
 end;
 
 { TPing }
@@ -532,17 +540,6 @@ begin
   Result := '';
 end;
 
-procedure TPing.AddStatisticsRTT(RTT: ULONG);
-begin
-  if RTT > FTimeoutMS then
-    Inc(FTimeouts);
-  Inc(FEchoCumulant, RTT);
-  if RTT < FEchoMin then
-    FEchoMin := RTT;
-  if RTT > FEchoMax then
-    FEchoMax := RTT;
-end;
-
 procedure TPing.InitialReply;
 var
   ReplySize: DWORD;
@@ -769,20 +766,39 @@ begin
                errUnsupportedFamily, [GetFamilyStr(FFamily, True)]);
   end;
 
-  if Result = 0 then
-    FError := GetLastError
+  if Result = 0 then         // 如果回傳答應數為 0
+    FError := GetLastError   // 取得錯誤碼
   else
-    FError := 0;
+    FError := ERROR_SUCCESS; // 設定為 ERROR_SUCCESS(無錯誤)
 
   Inc(FTimes);
   case Code of
-    IP_SUCCESS:
-      if FError = ERROR_SUCCESS then
-        AddStatisticsRTT(RTT)
-      else
-        Inc(FFails);
+  IP_SUCCESS:
+    if FError = ERROR_SUCCESS then // 更新回應時間的統計狀態
+    begin
+      if RTT > FTimeoutMS then Inc(FTimeouts);
+      if RTT < FEchoMin then FEchoMin := RTT;
+      if RTT > FEchoMax then FEchoMax := RTT;
+      Inc(FEchoCumulant, RTT);
+    end
     else
-      Inc(FLost)
+      Inc(FFails);
+  IP_REQ_TIMED_OUT:   // 回應超時
+    Inc(FTimeouts);
+  IP_BUF_TOO_SMALL,   // 應答緩衝區太小。
+  IP_NO_RESOURCES,    // IP 資源不足。
+  IP_BAD_OPTION,      // 指定了錯誤的IP選項。
+  IP_HW_ERROR,        // 發生硬體錯誤。
+  IP_PACKET_TOO_BIG,  // 封包太大。
+  IP_BAD_REQ,         // 一個錯誤的請求。
+  IP_BAD_ROUTE,       // 一條糟糕的路線。
+  IP_PARAM_PROBLEM,   // 參數問題。
+  IP_OPTION_TOO_BIG,  // IP選項太大。
+  IP_BAD_DESTINATION, // 一個糟糕的目的地。
+  IP_GENERAL_FAILURE: // 一般故障。對於某些格式錯誤的ICMP資料包可能會回傳此錯誤。
+    Inc(FFails);
+  else
+    Inc(FLost);
   end;
 end;
 

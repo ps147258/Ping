@@ -36,12 +36,18 @@ type
     { Private declarations }
   public
     { Public declarations }
+    // AdapterAddresses 分類配對
     procedure OnAdapterDetected(ASender: TObject;
       State: TAdaptersInfoState; const AOld, ANew: TAdapterAddresses);
-    procedure OnAdapterChanged(Sender: TObject);
-    procedure DoSelected;
-    procedure RefreshAdapter;
+
+    procedure OnAdapterChanged(Sender: TObject); // 整理介面清單
+    procedure DoSelected;                        // 若已選擇則返回
+    procedure RefreshAdapter;                    // 重新整理 Adapter 列表
+    // 取得清單中的第一筆 (如有 IPv4 則優先)
     function GetFirstAddress(var Unicast, Gateway: TSockAddr): Boolean;
+    // 取得清單中指定索引的項目
+    function GetAddress(Index: Integer; var Unicast, Gateway: TSockAddr): Boolean;
+    // 取得清單中選擇的項目
     function GetSelect(var Unicast, Gateway: TSockAddr): Boolean;
   end;
 
@@ -95,8 +101,8 @@ var
   I, J: Integer;
 begin
 
-  UnicastList := TSockAddrList.Create;
-  GatewayList := TSockAddrList.Create;
+  UnicastList := TSockAddrList.Create; // 本機位址臨時清單 (方便後面的Family配對)
+  GatewayList := TSockAddrList.Create; // 閘道位址臨時清單 (方便後面的Family配對)
   try
     case State of
       _AIM_Removed: p := @AOld;
@@ -107,6 +113,7 @@ begin
     AdapterName := string(p.AdapterName);
     FriendlyName := WideCharToString(p.FriendlyName);
 
+    // 將Unicast位址清單化(臨時清單)
     Unicast := p.FirstUnicastAddress;
     while Assigned(Unicast) do
     begin
@@ -120,6 +127,7 @@ begin
       Unicast := Unicast.Next;
     end;
 
+    // 將Gateway位址清單化(臨時清單)
     Gateway := p.FirstGatewayAddress;
     while Assigned(Gateway) do
     begin
@@ -129,6 +137,7 @@ begin
       Gateway := Gateway.Next;
     end;
 
+    // 當 State 為已移除或變更時，刪除 AdapterName 對應的 AdapterAddress 項目
     case State of
       _AIM_Removed, _AIM_Changed:
       begin
@@ -141,6 +150,9 @@ begin
       end;
     end;
 
+    // 當 State 為新增或變更時，將位址與Family相對應的方式加入清單
+    // 通常一個 Adapter 會有一個 IPv4 或 IPv6 或 兩者皆有
+    // 也不排除會有更多，但目前只針對只有一組 [IPv4] 或 [IPv6] 或 [IPv4 與 IPv6]
     case State of
       _AIM_Added, _AIM_Changed:
       begin
@@ -153,18 +165,19 @@ begin
           while J < GatewayList.Count do
           begin
             pGateway := @GatewayList.List[J];
-            if pUnicast.base.sin_family = pGateway.base.sin_family then
-            begin
-              AdapterAddressList.Add(AdapterName, FriendlyName, pUnicast^, pGateway^);
-              UnicastList.Delete(I);
-              GatewayList.Delete(J);
-              b := False;
-              Break;
-            end
-            else
+            // 當 Unicast 與 Gateway 的 Family 不相同時繼續處理下一筆 Gateway
+            if pUnicast.base.sin_family <> pGateway.base.sin_family then
             begin
               Inc(J);
+              Continue;
             end;
+            // 當 Unicast 與 Gateway 有相同的 Family 時視為一組將其加入清單
+            // 然後刪除以加入 AdapterAddressList 的 Unicast 與 Gateway 臨時清單
+            AdapterAddressList.Add(AdapterName, FriendlyName, pUnicast^, pGateway^);
+            UnicastList.Delete(I);
+            GatewayList.Delete(J);
+            b := False;
+            Break;
           end;
           if b then
             Inc(I);
@@ -206,6 +219,18 @@ begin
     sUnicast := AddressToString(p.Unicast);
     sGateway := AddressToString(p.Gateway);
 
+    //
+    // 下面搜尋 Group 與 Item 各使用兩次迴圈原意是打算以程式碼長度換取
+    // 某些狀況下時的效率增進，
+    // 以上一次的索引作為起始搜尋一次，如沒找到則再由0搜到停止前一個的位置。
+    // 但一台電腦中通常不會有太多的 網路配接卡(Adapter) 與 本機網路的來源通訊位置，
+    // 因此未來也可能會做修改。
+    //
+
+    //
+    // Adapter 群組
+    //
+
     GroupId := -1;
     J := iGroup;
     while J < ListView1.Groups.Count do
@@ -244,6 +269,10 @@ begin
       iGroup := Group.Index;
       GroupId := Group.GroupID;
     end;
+
+    //
+    // Address 列表
+    //
 
     b := True;
     J := iItem;
@@ -294,6 +323,10 @@ begin
     end;
 
   end;
+
+  //
+  // 清除已不存在的f群組與項目
+  //
 
   for I := GroupCount - 1 downto 0 do
     if not bGroup[I] then
@@ -377,7 +410,7 @@ begin
   end;
 end;
 
-function TForm2.GetSelect(var Unicast, Gateway: TSockAddr): Boolean;
+function TForm2.GetAddress(Index: Integer; var Unicast, Gateway: TSockAddr): Boolean;
 var
   I: Integer;
   p: PAdapterAddress;
@@ -385,10 +418,11 @@ var
   s: string;
 begin
   Result := False;
-  Item := ListView1.Selected;
-
-  if not Assigned(Item) then
+  if (Index < 0) or (Index >= ListView1.Items.Count) then
     Exit;
+
+  Item := ListView1.Items[Index];
+
   if not Assigned(Item.Data) then
     Exit;
 
@@ -409,6 +443,11 @@ begin
     Gateway := p.Gateway;
     Exit(True);
   end;
+end;
+
+function TForm2.GetSelect(var Unicast, Gateway: TSockAddr): Boolean;
+begin
+  Result := GetAddress(ListView1.ItemIndex, Unicast, Gateway);
 end;
 
 end.

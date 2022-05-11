@@ -58,6 +58,7 @@ type
   TAdapterChangedEvent = procedure(ASender: TObject; State: TAdaptersInfoState;
     const AOld, ANew: TAdapterAddresses) of object;
 
+  // 網路配接卡資訊，僅用於同步不同執行續間的資料存取
   TAdapterAddrSync = record
     State: TAdaptersInfoState;
     DataOld: PAdapterAddresses;
@@ -72,6 +73,8 @@ type
 
   TAdaptersAddressesProc = reference to procedure (Sender: TObject; var Buffer: TArray<Byte>; Size: ULONG; ErroCode: DWORD);
 
+  // 執行 Windows API GetAdaptersAddresses 的執行續，因為所需時間較長，
+  // 而該函數通常需要於背景運作，因此以 TThread 來方便使用。
   TAdapterScanThread = class(TThread)
   private
     FFinishProc: TAdaptersAddressesProc;
@@ -97,24 +100,25 @@ type
 
   TAdaptersInfoPointerList = TList<PAdapterAddresses>;
 
+  // 網路配接卡資訊
   TAdaptersInfo = class(TComponent)
   private const
     _DefaultIntervalMS = 3000; // 預設的掃描間隔(毫秒)
     _MaxScanTimerMS = 50;      // 檢查執行續狀態的計時器間隔(毫秒)
   private
-    FFamily: ULONG;
-    FFlags: DWORD;
-    FBuffer: TAdapterBuffer;
-    FList: TAdaptersInfoPointerList;
-    FSyncBuffer: TAdapterAddrSync;
-    FOnDetected: TAdapterChangedEvent;
-    FOnChanged: TNotifyEvent;
-    FScanIntervalMS: DWORD;
-    FTimeoutStamp: DWORD;
-    FTimer: TTimer;
-    FActive: Boolean;
-    FManualRefresh: Boolean;
-    FScanner: TAdapterScanThread;
+    FFamily: ULONG;                    // GetAdaptersAddresses 的目標 IP 類型
+    FFlags: DWORD;                     // GetAdaptersAddresses 的查詢方式
+    FBuffer: TAdapterBuffer;           // GetAdaptersAddresses 回傳多筆 IP_ADAPTER_ADDRESSES 的緩衝區
+    FList: TAdaptersInfoPointerList;   // 配接卡資訊指標清單指向 FBuffer 中的每一筆 IP_ADAPTER_ADDRESSES
+    FSyncBuffer: TAdapterAddrSync;     // 執行續資料同步用的緩衝區
+    FOnDetected: TAdapterChangedEvent; // 發現每一筆 網路配接卡資訊 的動作
+    FOnChanged: TNotifyEvent;          // 如果發現有變更的動作
+    FScanIntervalMS: DWORD;            // 掃描間格
+    FTimeoutStamp: DWORD;              // 內部使用的執行超時時間點
+    FTimer: TTimer;                    // 用於檢查內部執行續運作狀態
+    FActive: Boolean;                  // 掃描是否處於運作中
+    FManualRefresh: Boolean;           // 標記是否處於手動更新 (執行續會等待子執行續執行結束)
+    FScanner: TAdapterScanThread;      // 運作 GetAdaptersAddresses 的執行續
 
     procedure OnTimer(Sender: TObject);
 
@@ -142,7 +146,7 @@ type
     constructor Create(AOwner: TComponent; Active: Boolean = True); reintroduce;
     destructor Destroy; override;
 
-    procedure Refresh;
+    procedure Refresh; // 取得最新資訊
 
     property Family: ULONG read FFamily write SetFamily;
     property Flags: DWORD read FFlags write SetFlags;
@@ -155,13 +159,9 @@ type
     property Items[Index: Integer]: TAdapterAddresses read GetItem;
     property OnDetected: TAdapterChangedEvent read FOnDetected write FOnDetected;
     property OnChanged: TNotifyEvent read FOnChanged write FOnChanged;
-
   end;
 
 implementation
-
-//uses
-//  HighAccuracyGauge, Debug;
 
 resourcestring
   _ErrSettingsAreLocked = 'Attribute %s cannot be changed when adapter change scanning.';
@@ -196,26 +196,17 @@ end;
 
 procedure TAdapterScanThread.Execute;
 var
-//  Gauge: TPerformanceGauge;
   pBuf: PIP_ADAPTER_ADDRESSES;
 begin
-//  Gauge := TPerformanceGauge.Create;
-//  try
-//    Gauge.ShotStart();
-    // 預設暫存區大小
-    FSize := Max(Length(FBuffer), SizeOf(IP_ADAPTER_ADDRESSES));
-    // 建立暫存區並取得資訊
-    repeat
-      SetLength(FBuffer, FSize);
-      pBuf := PIP_ADAPTER_ADDRESSES(PByte(FBuffer));
-      FillChar(pBuf^, FSize, 0);
-      FErroCode := GetAdaptersAddresses(FFamily, FFlags, nil, pBuf, @FSize);
-    until (FErroCode <> ERROR_BUFFER_OVERFLOW);
-//    Gauge.ShotEnd;
-//    DbgMsg('GetAdaptersAddresses RunTime: %s, Size: %ubytes', [Gauge.LastTimeStrF, Size]);
-//  finally
-//    Gauge.Free;
-//  end;
+  // 預設暫存區大小
+  FSize := Max(Length(FBuffer), SizeOf(IP_ADAPTER_ADDRESSES));
+  // 建立暫存區並取得資訊
+  repeat
+    SetLength(FBuffer, FSize);
+    pBuf := PIP_ADAPTER_ADDRESSES(PByte(FBuffer));
+    FillChar(pBuf^, FSize, 0);
+    FErroCode := GetAdaptersAddresses(FFamily, FFlags, nil, pBuf, @FSize);
+  until (FErroCode <> ERROR_BUFFER_OVERFLOW);
 
   if Assigned(FFinishProc) then
     TThread.Synchronize(Self, procedure
@@ -375,20 +366,23 @@ var
   ItemState: PAdapterAddrSync;
   DiffFlags: TAdapterAddrFlags;
 begin
-//  Performance.ShotStart();
   case ErroCode of
     ERROR_SUCCESS: // 成功
     begin
       pNew := PAdapterAddresses(PByte(Buffer));
       OldCount := FList.Count;
       if OldCount > 0 then
-      begin // 比對新舊資訊
+      begin // 與已存在的清單做比對
         IsChange := False;
         Table := TAdaptersInfoTable.Create;
         try
           MaxCount := Max(OldCount, Ceil(Size / SizeOf(IP_ADAPTER_INFO)));
           Table.Count := MaxCount;
           TableList := PAdapterAddrSync(Table.List);
+
+          //
+          // 初始標記清除旗標
+          //
           for I := 0 to OldCount - 1 do
           begin
             {$POINTERMATH ON}
@@ -399,6 +393,9 @@ begin
             ItemState.DataNew := nil;
           end;
 
+          //
+          // 如果有已有相同配接卡名稱存在，則比對與設定 相同 或是 變更 的旗標
+          //
           OldCount := FList.Count;
           J := OldCount;
           pCurrNew := pNew;
@@ -414,16 +411,16 @@ begin
               if ItemState.State <> _AIM_Removed then
                 Continue;
               // 比對 AdaptersAddresses，如果項目不相同則會設定該項目的旗標。
-              // Simplify = True 遇到相異則立即退出並返回旗標。
+              // Simplify = True 遇到相異則立即退出並回傳旗標。
               DiffFlags := CompareAdaptersAddressesFirst(pCurrOld^, pCurrNew^, True);
-              if DiffFlags = [] then
+              if DiffFlags = [] then // 全部相同
               begin
                 IsNew := False;
                 ItemState.State := _AIM_Same;
                 ItemState.DataNew := pCurrNew;
                 Break;
               end;
-              if not (_AAF_AdapterName in DiffFlags) then
+              if not (_AAF_AdapterName in DiffFlags) then // 配接卡名稱相同
               begin
                 IsChange := True;
                 IsNew := False;
@@ -444,6 +441,9 @@ begin
             pCurrNew := pCurrNew.Next;
           end;
 
+          //
+          // 如有異動則更新清單資訊
+          //
           if IsChange then
           begin
             if MaxCount > J then
@@ -457,14 +457,14 @@ begin
               {$POINTERMATH OFF}
 
               case FSyncBuffer.State of
-                _AIM_Removed: FList.Delete(J);
+                _AIM_Removed: FList.Delete(J); // 刪除項目，但維持清單索引位置
                 _AIM_Added:
-                begin
+                begin // 增加項目，前往下一個清單索引
                   FList.Add(FSyncBuffer.DataNew);
                   Inc(J);
                 end;
                 _AIM_Changed, _AIM_Same:
-                begin
+                begin // 覆蓋項目，前往下一個清單索引
                   FList.Items[J] := FSyncBuffer.DataNew;
                   Inc(J);
                 end;
@@ -518,8 +518,6 @@ begin
 
     else RaiseLastOSError; // 若失敗則產生例外
   end;
-//  Performance.ShotEnd;
-//  DbgMsg('Compare RunTime: %s', [Performance.LastTimeStrF]);
 end;
 
 procedure TAdaptersInfo.DoScanAdapter;
@@ -549,7 +547,7 @@ end;
 procedure TAdaptersInfo.Refresh;
 begin
   if FActive then
-  begin
+  begin // 當循環掃描啟動時等待正在處理的掃描結束
     if IsScanning then
     begin
       if Assigned(FScanner) then
@@ -558,7 +556,7 @@ begin
     end;
   end
   else
-  begin
+  begin // 當不在循環掃時使用建立新的掃描執行續，並且等待完成
     FManualRefresh := True;
     try
       if Assigned(FScanner) then
