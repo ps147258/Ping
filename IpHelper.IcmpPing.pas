@@ -1,6 +1,7 @@
 ﻿// Type: Windows network ICMP ping.
 // Author: 2022 Wei-Lun Huang
 // Description: ping.
+// Supported: Windows Server 2003 or higher.
 //
 // Features:
 //   1. TPing
@@ -112,6 +113,21 @@ type
     RoundTripTime: ULONG; // RTT in milliseconds
   end;
 
+  // 狀態資訊，由於可能會用於大量累積，因此稍微需要注意對齊後的大小
+  PReplyInfo = ^TReplyInfo;
+  TReplyInfo = record      //   32bit   64bit Description
+    Timestamp: TDateTime;  //  8bytes  8bytes Timestamp
+    Replies  : DWORD;      //  4bytes  4bytes Replies of API IcmpPing
+    Error    : ULONG;      //  4bytes  4bytes Reply IP_STATUS
+
+    Family   : Smallint;   //  2bytes  2bytes Replying address family
+    Address  : TAddrBytes; // 16bytes 16bytes Replying address
+    Status   : ULONG;      //  4bytes  4bytes Reply IP_STATUS
+    RoundTripTime: ULONG;  //  4bytes  4bytes RTT in milliseconds
+    function GetErrorMessage: string;
+    function IsValid: Boolean; inline;
+  end;                     // 48bytes 48bytes Aligned size
+
   TCreatRequestMode = set of (
     _CRM_NumberChar, // 0-9
     _CRM_LowerCase,  // a-z
@@ -132,8 +148,8 @@ const
   _EchoReplyV4Size = SizeOf(TIcmpEchoReply);   // ICMP_ECHO_REPLY
   _EchoReplyV6Size = SizeOf(TIcmpV6EchoReply); // ICMPV6_ECHO_REPLY
   _IoStatusBlockSize = SizeOf(TIoStatusBlock); // IO_STATUS_BLOCK
-  _ReplyV4BufferSize = _EchoReplyV4Size + _IoStatusBlockSize;
-  _ReplyV6BufferSize = _EchoReplyV6Size + _IoStatusBlockSize;
+  _ReplyV4BaseSize = _EchoReplyV4Size + _IoStatusBlockSize; // ICMP_ECHO_REPLY + IO_STATUS_BLOCK
+  _ReplyV6BaseSize = _EchoReplyV6Size + _IoStatusBlockSize; // ICMPV6_ECHO_REPLY + IO_STATUS_BLOCK
 
   _DefaultTimeoutMS = 500; // 預設 ICMP ping API 的逾時時間
 
@@ -142,8 +158,12 @@ type
   private const
     _WSA_Version = $0202; // Winsock DLL 初始化的目標版本(例：2.2 = $0202)
     _DefaultTimeout = _DefaultTimeoutMS; // 預設逾時時間
+    _DefaultOptionTTL   = 64; // 封包預設最大傳遞距離
+    _DefaultOptionFlags = 0;  // 封包預設最大傳遞距離
   private
+    FReplies: DWORD;         // SendEcho 的回應數
     FError: DWORD;           // SendEcho API 的錯誤碼
+    FTimestamp: TDateTime;   // SendEcho 取得回應後的本機時間
     FTimeoutMS: DWORD;       // 最長等待時間 MilliSecond(ms)
     FTimes: Cardinal;        // SendEcho 的執行次數
     FFails: Cardinal;        // SendEcho 的失敗次數 (API 錯誤 與 回應失敗)
@@ -155,7 +175,7 @@ type
     FhIcmp: THandle;         // ICMP echo 通訊控制
     FFamily: Smallint;       // 位址類型
     FWSAData: TWSAData;      // Winsock DLL 資訊
-    FOptions: TIpOptionInformation; // 選項參數
+    FOptions: PIpOptionInformation; // 選項參數
     FSource: TSockAddr;             // 來源位址
     FDestination: TSockAddr;        // 目標位址
     FRequestBuffer: array of Byte;  // 傳送緩衝區
@@ -165,7 +185,8 @@ type
     procedure WSAEnd; inline;   // 結束 Winsock
     procedure Initial; inline;  // 初始化本物件的變數(僅用於 Create)
 
-    function TryGetEchoReplyPtr: PIcmpEchoReplyEx;
+    function TryGetEchoReplyPtr: PIcmpEchoReplyEx; // 取得目前接收緩衝區位址指標，如果內容無效則產生例外。
+    function TryReplyInfo: TReplyInfo;             // 取得整合資訊，如果內容無效則產生例外。
 
     function GetLossRate: Single;                       // 取得遺失率
     function GetAverage: Single; inline;                // RoundTripTime(RTT) 的平均值(ms)
@@ -190,13 +211,24 @@ type
     class function RunSendEcho(const ASource, ADestination: TSockAddr; RequestSize: DWORD; ATimeoutMS: DWORD): Integer; overload; static;
     class function RunSendEcho(const ASource, ADestination: TSockAddr; ATimeoutMS: DWORD = _DefaultTimeout): Integer; overload; static;
 
+    // SendEcho 額外參數
+    procedure ClearIpOptions;
+    function GetIpOptions(var Value: TIpOptionInformation): Boolean; overload;
+    function GetIpOptions: TIpOptionInformation; overload;
+    procedure SetIpOptions(const Value: TIpOptionInformation); overload;
+    procedure SetIpOptions(Ttl, Flags: UCHAR); overload;
+
     // SendEcho 緩衝區 (SendEcho 使用前的必要前置作業)
     procedure InitialReply;
     procedure CreatRequest(Size: WORD; Mode: TCreatRequestMode = CRM_Standard);
     procedure SetRequest(const Buffer; Size: WORD);      // 複製資料至傳送緩衝區
+
+    // 讀取 SendEcho 緩衝區的資料
     function GetRequest(var Buffer; Size: DWORD): DWORD; // 取得傳送的緩衝區資料
     function GetReply(var Buffer; Size: DWORD): DWORD;   // 取得接收的緩衝區資料
     function GetEchoReply(var EchoReply: TPingEchoReply): Boolean; // 僅取得回應的狀態類資訊
+    function ReplyReady: Boolean; inline; // 回應資訊是否有效狀態(表示是否已執行過一次 Ping)
+    function GetReplyInfo(var Value: TReplyInfo): Boolean; // 取得整合資訊
 
     //
     // ICMP 通訊 (SendEcho 使用前的必要前置作業)
@@ -218,7 +250,7 @@ type
     property TimeoutMS: DWORD read FTimeoutMS write FTimeoutMS; // API 的逾時時間
     property Family: Smallint read FFamily;                     // IP 類型
     property WSAData: TWSAData read FWSAData;                   // Winsock 資訊
-    property Options: TIpOptionInformation read FOptions write FOptions;
+    property Options: TIpOptionInformation read GetIpOptions write SetIpOptions;
     property Source: TSockAddr read FSource;
     property Destination: TSockAddr read FDestination;
 
@@ -250,8 +282,13 @@ type
     property EchoReply: PIcmpEchoReplyEx read GetEchoReplyPtr;  // 通用
     property EchoReplyV4: PIcmpEchoReply read GetEchoReplyV4;   // 只支援 IPv4
     property EchoReplyV6: PIcmpV6EchoReply read GetEchoReplyV6; // 只支援 IPv6
+
+    // 取得部分 參數 與 回應結果 資訊
+    property ReplyInfo: TReplyInfo read TryReplyInfo; // 通用
   end;
 
+function GetReplyStatusMessage(Code: ULONG): string; inline;
+function GetApiErrorMessage(Code: ULONG): string; inline;
 
 implementation
 
@@ -288,7 +325,16 @@ begin
     SetLength(Result, 0);
 end;
 
-{ TPing }
+function GetReplyStatusMessage(Code: ULONG): string;
+begin
+  Result := 'ICMP: [' + Code.ToString + ']' + GetReplyStatusString(Code);
+end;
+
+function GetApiErrorMessage(Code: ULONG): string;
+begin
+  Result := 'API: [' + Code.ToString + ']' + SysErrorMessage(Code);
+end;
+
 
 resourcestring
   errDiffeFamily = 'The source(%s) and destination(%s) IP families are not the same.';
@@ -297,6 +343,34 @@ resourcestring
   errUnsupportedFamily = 'Unsupported Family %s.';
   errRequestMode = 'When the Mode of CreatRequest is not standard, need to specify types of the char sets.';
   errEchoReply = 'Echo reply buffer is not valid.';
+  errNoReplyYet = 'Haven''t received any ping replies yet.';
+
+function GetStringByCode(Status, Error: ULONG): string; inline;
+begin
+  if Status <> IP_SUCCESS then
+    Exit(GetReplyStatusMessage(Status));
+  if Error <> NO_ERROR then
+    Exit(GetApiErrorMessage(Error));
+  Result := '';
+end;
+
+{ TReplyInfo }
+
+function TReplyInfo.GetErrorMessage: string;
+begin
+  case Family of
+  AF_INET, AF_INET6: ;
+  else Exit(Format(errUnsupportedFamily, [GetFamilyStr(Family, True)]));
+  end;
+  Result := GetStringByCode(Status, Error);
+end;
+
+function TReplyInfo.IsValid: Boolean;
+begin
+  Result := (Error = NO_ERROR) and (Status = IP_SUCCESS);
+end;
+
+{ TPing }
 
 constructor TPing.Create;
 begin
@@ -334,6 +408,8 @@ destructor TPing.Destroy;
 begin
   IcmpClose;
   WSAEnd;
+  if Assigned(FOptions) then
+    FreeMem(FOptions);
   inherited;
 end;
 
@@ -412,10 +488,10 @@ begin
 
   // Object memory blocks are initially filled with 0 when creating,
   // so no need to be cleared to 0 again.
-  FOptions.Ttl := 64;
+  ClearIpOptions;
 
   WSABegin;
-end;    
+end;
 
 function TPing.TryGetEchoReplyPtr: PIcmpEchoReplyEx;
 begin
@@ -431,6 +507,18 @@ begin
 
   if not Assigned(Result) then
     raise Exception.Create(errEchoReply);
+end;
+
+function TPing.TryReplyInfo: TReplyInfo;
+begin
+  case FFamily of
+    AF_INET, AF_INET6:
+      if GetReplyInfo(Result) then
+        Exit
+      else
+        raise Exception.Create(errNoReplyYet);
+    else raise Exception.CreateFmt(errUnsupportedFamily, [FFamily]);
+  end;
 end;
 
 function TPing.GetLossRate: Single;
@@ -459,8 +547,8 @@ begin
 // This buffer should also be large enough to also hold 8 more bytes of data
 // (the size of an ICMP error message) plus space for an IO_STATUS_BLOCK structure.
   case FFamily of
-    AF_INET : Result := RequestSize + _ReplyV4BufferSize;
-    AF_INET6: Result := RequestSize + _ReplyV6BufferSize;
+    AF_INET : Result := RequestSize + _ReplyV4BaseSize;
+    AF_INET6: Result := RequestSize + _ReplyV6BaseSize;
     else raise Exception.CreateFmt(errUnsupportedFamily, [GetFamilyStr(FFamily, True)]);
   end;
 end;
@@ -531,13 +619,56 @@ begin
   AF_INET6: Code := IcmpEcho.v6.Status;
   else      Exit(Format(errUnsupportedFamily, [FFamily]));
   end;
+  Result := GetStringByCode(Code, Error);
+end;
 
-  if Code <> IP_SUCCESS then
-    Exit('ICMP: [' + Code.ToString + ']' + GetReplyStatusString(Code));
-  if FError <> NO_ERROR then
-    Exit('API: [' + FError.ToString + ']' + SysErrorMessage(FError));
+procedure TPing.ClearIpOptions;
+begin
+  if Win32MajorVersion < 6 then // Windows Server 2003 and Windows XP.
+  begin
+    if Assigned(FOptions) then
+      FillChar(FOptions, SizeOf(TIpOptionInformation), 0)
+    else
+      FOptions := AllocMem(SizeOf(TIpOptionInformation));
+    FOptions.Ttl := _DefaultOptionTTL;
+    FOptions.Flags := _DefaultOptionFlags;
+  end
+  else
+    if Assigned(FOptions) then
+    begin
+      FreeMem(FOptions);
+//      FOptions := nil;
+    end;
+end;
 
-  Result := '';
+function TPing.GetIpOptions(var Value: TIpOptionInformation): Boolean;
+begin
+  Result := Assigned(FOptions);
+  if Result then
+    Move(FOptions^, Result, SizeOf(TIpOptionInformation));
+end;
+
+function TPing.GetIpOptions: TIpOptionInformation;
+begin
+  if not GetIpOptions(Result) then
+    FillChar(Result, SizeOf(Result), 0);
+end;
+
+procedure TPing.SetIpOptions(const Value: TIpOptionInformation);
+begin
+  if not Assigned(FOptions) then
+    GetMem(FOptions, SizeOf(TIpOptionInformation));
+  Move(Value, FOptions^, SizeOf(TIpOptionInformation));
+end;
+
+procedure TPing.SetIpOptions(Ttl, Flags: UCHAR);
+begin
+  if Assigned(FOptions) then
+    FillChar(FOptions, SizeOf(TIpOptionInformation), 0)
+  else
+    FOptions := AllocMem(SizeOf(TIpOptionInformation));
+  FOptions.Ttl := Ttl;
+  FOptions.Flags := Flags;
 end;
 
 procedure TPing.InitialReply;
@@ -618,7 +749,7 @@ begin
   Result := GetReplySize;
   if Size >= Result then
     Move(PByte(FReplyBuffer)^, Buffer, Result);
-end;         
+end;
 
 function TPing.GetEchoReply(var EchoReply: TPingEchoReply): Boolean;
 var
@@ -650,6 +781,56 @@ begin
   else raise Exception.CreateFmt(errUnsupportedFamily, [GetFamilyStr(FFamily, True)]);
   end;
   Result := True;
+end;
+
+function TPing.ReplyReady: Boolean;
+begin
+  Result := Double(FTimestamp) <> 0;
+end;
+
+function TPing.GetReplyInfo(var Value: TReplyInfo): Boolean;
+var
+  IcmpEcho: PIcmpEchoReplyEx;
+begin
+  Result := ReplyReady;
+  if not ReplyReady then
+    Exit;
+  Value.Timestamp := FTimestamp;
+  Value.Replies := FReplies;
+  Value.Error := FError;
+  Value.Family := FFamily;
+  FillChar(Value.Address, SizeOf(Value.Address), 0);
+  IcmpEcho := GetEchoReplyPtr;
+  case FFamily of
+    AF_INET:
+    begin
+      Move(IcmpEcho.v4.Address, Value.Address, SizeOf(in_addr));
+      Value.Status := IcmpEcho.v4.Status;
+      Value.RoundTripTime := IcmpEcho.v4.RoundTripTime;
+//      Value.Ttl   := IcmpEcho.v4.Options.Ttl;
+//      Value.Tos   := IcmpEcho.v4.Options.Tos;
+//      Value.Flags := IcmpEcho.v4.Options.Flags;
+    end;
+    AF_INET6:
+    begin
+      Move(IcmpEcho.v6.Address.sin6_addr, Value.Address, SizeOf(IN6_ADDR));
+      Value.Status := IcmpEcho.v6.Status;
+      Value.RoundTripTime := IcmpEcho.v6.RoundTripTime;
+//      Value.Ttl   := FOptions.Ttl;
+//      Value.Tos   := FOptions.Tos;
+//      Value.Flags := FOptions.Flags;
+    end;
+    else
+    begin
+      FillChar(Value.Address, SizeOf(Value.Address), 0);
+      Value.Status := 0;
+      Value.RoundTripTime := 0;
+//      Value.Ttl   := 0;
+//      Value.Tos   := 0;
+//      Value.Flags := 0;
+      Result := False;
+    end;
+  end;
 end;
 
 procedure TPing.ResetState;
@@ -713,6 +894,7 @@ begin
     RaiseLastOSError;
 
   // Overwrite self variable value.
+  FReplies := 0;
   FFamily := SrcFamily;
   FSource := ASource;
   FDestination := ADestination;
@@ -736,18 +918,17 @@ var
   RTT: ULONG;
 begin
   case FFamily of
-    AF_INET : if Length(FReplyBuffer) < _ReplyV4BufferSize then InitialReply;
-    AF_INET6: if Length(FReplyBuffer) < _ReplyV6BufferSize then InitialReply;
+    AF_INET : if Length(FReplyBuffer) < _ReplyV4BaseSize then InitialReply;
+    AF_INET6: if Length(FReplyBuffer) < _ReplyV6BaseSize then InitialReply;
   end;
   
   FillChar(PByte(FReplyBuffer)^, Length(FReplyBuffer), 0);
-
   case FFamily of
     AF_INET: // for IPv4
     begin
       Result := IcmpSendEcho2Ex(FhIcmp, 0, nil, nil,
                 FSource.v4.sin_addr, FDestination.v4.sin_addr,
-                PByte(FRequestBuffer), Length(FRequestBuffer), @FOptions,
+                PByte(FRequestBuffer), Length(FRequestBuffer), FOptions,
                 PByte(FReplyBuffer), Length(FReplyBuffer), FTimeoutMS);
       pReply := GetEchoReplyPtr;
       Code := pReply.v4.Status;
@@ -756,7 +937,7 @@ begin
     AF_INET6: // for IPv6
     begin
       Result := Icmp6SendEcho2(FhIcmp, 0, nil, nil, FSource.v6, FDestination.v6,
-                PByte(FRequestBuffer), Length(FRequestBuffer), @FOptions,
+                PByte(FRequestBuffer), Length(FRequestBuffer), FOptions,
                 PByte(FReplyBuffer), Length(FReplyBuffer), FTimeoutMS);
       pReply := GetEchoReplyPtr;
       Code := pReply.v6.Status;
@@ -765,6 +946,8 @@ begin
     else raise Exception.CreateFmt(
                errUnsupportedFamily, [GetFamilyStr(FFamily, True)]);
   end;
+  FTimestamp := Now;
+  FReplies := Result;
 
   if Result = 0 then         // 如果回傳答應數為 0
     FError := GetLastError   // 取得錯誤碼

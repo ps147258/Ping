@@ -15,8 +15,8 @@ unit Unit1;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, Winapi.WinSock, Winapi.MMSystem,
-  Winapi.IpExport, Winapi.Winsock2,
+  Winapi.Windows, Winapi.Messages, Winapi.CommCtrl,
+  Winapi.WinSock, Winapi.MMSystem, Winapi.IpExport, Winapi.Winsock2,
   System.SysUtils, System.Variants, System.Classes, System.Math, System.AnsiStrings,
   System.Generics.Collections,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls,
@@ -27,48 +27,64 @@ uses
 type
   TForm1 = class(TForm)
     IdThreadComponent1: TIdThreadComponent;
-    Label5: TLabel;
-    Button2: TButton;
-    Label1: TLabel;
-    ComboBox1: TComboBox;
-    Label2: TLabel;
-    ComboBox2: TComboBox;
 
-    Label3: TLabel;
-    Edit1: TEdit;
-    UpDown1: TUpDown;
-    Label4: TLabel;
-    Edit2: TEdit;
-    UpDown2: TUpDown;
+    Panel1: TPanel;
+      Label5: TLabel;
+      Button2: TButton;
+      Label1: TLabel;
+      ComboBox1: TComboBox;
+      Label2: TLabel;
+      ComboBox2: TComboBox;
+      Label3: TLabel;
+      Edit1: TEdit;
+      UpDown1: TUpDown;
+      Label4: TLabel;
+      Edit2: TEdit;
+      UpDown2: TUpDown;
+      Label7: TLabel;
+      Edit4: TEdit;
+      UpDown4: TUpDown;
+      Label6: TLabel;
+      Edit3: TEdit;
+      UpDown3: TUpDown;
 
-    Label7: TLabel;
-    Edit4: TEdit;
-    UpDown4: TUpDown;
-    Label6: TLabel;
-    Edit3: TEdit;
-    UpDown3: TUpDown;
+    Splitter1: TSplitter;
 
-    Button1: TButton;
+    PageControl1: TPageControl;
+      TabSheet1: TTabSheet;
+        Memo1: TMemo;
 
-    Memo1: TMemo;
-    Series1: TLineSeries;
+    Splitter2: TSplitter;
+
     Chart1: TChart;
+      Series1: TLineSeries;
 
     StatusBar1: TStatusBar;
+    Button1: TButton;
     BalloonHint1: TBalloonHint;
+    TabSheet2: TTabSheet;
+    ListView1: TListView;
+    ScrollBar1: TScrollBar;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormDeactivate(Sender: TObject);
     procedure FormMouseLeave(Sender: TObject);
+    procedure FormResize(Sender: TObject);
+    procedure Splitter1CanResize(Sender: TObject; var NewSize: Integer; var Accept: Boolean);
     procedure StatusBar1MouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure StatusBar1MouseLeave(Sender: TObject);
+    procedure PageControl1Resize(Sender: TObject);
     procedure Chart1Resize(Sender: TObject);
+    procedure Series1ClickPointer(Sender: TCustomSeries; ValueIndex, X, Y: Integer);
     procedure UpDown3ChangingEx(Sender: TObject; var AllowChange: Boolean;
       NewValue: Integer; Direction: TUpDownDirection);
     procedure Edit3KeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure Edit3Exit(Sender: TObject);
+    procedure ListView1Data(Sender: TObject; Item: TListItem);
+    procedure ScrollBar1Scroll(Sender: TObject; ScrollCode: TScrollCode; var ScrollPos: Integer);
+    procedure ScrollBar1Change(Sender: TObject);
     procedure IdThreadComponent1Exception(Sender: TIdThreadComponent; AException: Exception);
     procedure IdThreadComponent1BeforeExecute(Sender: TIdThreadComponent);
     procedure IdThreadComponent1Run(Sender: TIdThreadComponent);
@@ -78,6 +94,14 @@ type
   private type
     TStatusBarHint = (_SBH_Pings, _SBH_Fails, _SBH_Loss, _SBH_Rate, _SBH_Times, _SBH_Reply);
     TStatusBarHintCllass = (_SBHC_Title, _SBHC_Description);
+
+    // ListView1 字串緩衝
+    PListViewString = ^TListViewString;
+    TListViewString = record
+      Title: string;
+      Text: string;
+    end;
+    TListViewStrings = TList<TListViewString>; // ListView1 字串緩衝
   private const
     cStatusBarHints: array[TStatusBarHint, TStatusBarHintCllass] of string = (
       ('Number of pings'   , 'Number of executions of Windows API ICMP Ping.'), // _SBH_Pings - 總數
@@ -89,24 +113,36 @@ type
   private
     { Private declarations }
     LastPingError: Cardinal;
-    LastStr1: string; // 最後第一項的訊息
-    LastStr2: string; // 最後第二項的訊息
+    LastStr1: string;      // 最後第一項的訊息
+    LastStr2: string;      // 最後第二項的訊息
     LogsBuff: TStringList; // 訊息緩衝，用於同步執行續
+    FirstStatusIndex: Integer; // 近期歷史訊息的起位置
+    ListViewTopIndex: Integer;         // ListView1 字串快取所指向的起始索引
+    ListViewStrings: TListViewStrings; // ListView1 顯示區的字串快取
 
     procedure AddToComboBox(ComboBox: TComboBox; const s: string); inline;
     procedure AddToComboBox1(const s: string); inline;
     procedure AddToComboBox2(const s: string); inline;
     procedure AddAdapterAddressesToComboBox;
-    function IsMemoScrollBottom: Boolean; // 取得 Memo1 檢視區是否處於最後一行
+    function ListViewScrollTo(ItemIndex: Integer; Select: Boolean = False): Boolean;
+    function IsMemoScrollBottom: Boolean;      // 檢查 Memo1 檢視區是否處於最後一行
+    function IsListViewScrollBottom: Boolean;  // 檢查 ListView1 檢視區是否處於最後一行
     function StatusPanel(ID: TStatusBarHint): TStatusPanel; inline;
     function GetStatusIndexBy(X: Integer): Integer; inline; // 座標所指向的狀態欄位索引
+    procedure RefreshScrollBarPageSize;             // 更新歷史圖表位置拉條
     procedure SetHistoryLength(NewLength: Integer); // 設定圖表表達長度
     procedure ResetHistory;                         // 圖表保留長度但數值清除
     procedure SstControlEnabled(State: Boolean);    // 部分介面停用或啟用
-    procedure RefreshSeriesPointer; inline;         // 以圖表節點密集度切換節點顯示
+    procedure RefreshSeriesPointer;                 // 以圖表節點密集度切換節點顯示
+    procedure RefreshSeries;                        // 更新圖表
 
     function InsertTimeStamp(const s: string): string; inline;
-    procedure FlushLogsBuff; // 將訊息緩衝排至 Memo1
+    procedure FlushLogsBuff;  // 將訊息緩衝排至 Memo1
+    procedure ClearReplyInfo; // 清除歷史訊息
+    function AddReplyInfo(const ReplyInfo: TReplyInfo): Integer; // 加入歷史訊息
+
+    procedure FormatInfo(var ValueOut: TListViewString; const ValueIn: TReplyInfo);
+    procedure SyncListView; // 同步 ListView1 顯示區字串快取區
 
     procedure SyncOnBefore; // 執行續起始時
     procedure SyncOnAfter;  // 執行續結束後
@@ -122,10 +158,13 @@ var
 implementation
 
 uses
-  Unit2;
+  Unit2, Debug;
 
 resourcestring
   errStatusHintOver = 'Value [%d] is outside the recognized range of type TStatusBarHint.';
+
+type
+  TReplyInfoList = TList<TReplyInfo>;
 
 var
   Ping: TPing = nil;                    // Windows API IcmpSendEcho 的包裝物件
@@ -137,6 +176,21 @@ var
   HistoryLength: Integer = 120;         // 圖表長度
   Replies: DWORD;                       // Ping API 的回應數
   LastTime: Cardinal;                   // 下次更新的時間
+  ReplyInfo: TReplyInfo;                // 回應狀態資訊
+  ReplyInfoList: TReplyInfoList = nil;  // 回應狀態清單
+
+
+function CheckScrollBottom(AWinControl: TWinControl): Boolean; //inline;
+var
+  si: TScrollInfo;
+begin
+  si.cbSize := SizeOf(si);
+  si.fMask := SIF_ALL;
+  if GetScrollInfo(AWinControl.Handle, SB_VERT, si) then
+    Result := si.nPos + Integer(si.nPage) = si.nMax + 1
+  else
+    Result := False;
+end;
 
 {$R *.dfm}
 
@@ -144,8 +198,8 @@ procedure TForm1.FormCreate(Sender: TObject);
 var
   AMajor, AMinor, ABuild: Cardinal;
 begin
-  if GetProductVersion(ParamStr(0), AMajor, AMinor, ABuild) then
-    Caption := Format('%s v%u.%u.%u '+{$IFDEF WIN64}'Win64'{$ELSE}'Win32'{$ENDIF}, [Caption, AMajor, AMinor, ABuild]);
+  Splitter1.MinSize := Panel1.Height;
+  Splitter2.MinSize := Chart1.Height;
 
   LogsBuff := TStringList.Create;
   Ping := TPing.Create;
@@ -154,8 +208,19 @@ begin
   TimeoutMS := UpDown1.Position;
   IntervalMS := UpDown2.Position;
 
+  ReplyInfoList := TReplyInfoList.Create;
+
+  ScrollBar1.Position := ScrollBar1.Min;
+  ScrollBar1.Max := ScrollBar1.Min;
+  ScrollBar1.Enabled := False;
   Series1.Clear;
   SetHistoryLength(UpDown3.Position);
+
+  ListViewTopIndex := 0;
+  ListViewStrings := TListViewStrings.Create;
+
+  if GetProductVersion(ParamStr(0), AMajor, AMinor, ABuild) then
+    Caption := Format('%s v%u.%u.%u '+{$IFDEF WIN64}'Win64'{$ELSE}'Win32'{$ENDIF}, [Caption, AMajor, AMinor, ABuild]);
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
@@ -164,6 +229,8 @@ begin
     IdThreadComponent1.TerminateAndWaitFor;
   Ping.Free;
   LogsBuff.Free;
+  ListViewStrings.Free;
+  ReplyInfoList.Free;
 end;
 
 procedure TForm1.FormShow(Sender: TObject);
@@ -193,6 +260,19 @@ end;
 procedure TForm1.FormMouseLeave(Sender: TObject);
 begin
   BalloonHint1.HideHint;
+end;
+
+procedure TForm1.FormResize(Sender: TObject);
+begin
+  Panel1.Top := 0;
+end;
+
+procedure TForm1.Splitter1CanResize(Sender: TObject; var NewSize: Integer; var Accept: Boolean);
+begin
+  if NewSize > TSplitter(Sender).MinSize then
+    NewSize := TSplitter(Sender).MinSize
+  else if NewSize < TSplitter(Sender).MinSize then
+    NewSize := 0;
 end;
 
 procedure TForm1.StatusBar1MouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
@@ -234,9 +314,33 @@ begin
   BalloonHint1.HideHint;
 end;
 
+procedure TForm1.PageControl1Resize(Sender: TObject);
+begin
+  if Splitter1.Top < Splitter1.MinSize then
+    Button1.Top := Splitter1.Top
+  else
+    Button1.Top := Panel1.Height - 8 - Button1.Height;
+end;
+
 procedure TForm1.Chart1Resize(Sender: TObject);
 begin
   RefreshSeriesPointer;
+end;
+
+procedure TForm1.Series1ClickPointer(Sender: TCustomSeries; ValueIndex, X, Y: Integer);
+var
+  I, J: Integer;
+  Count: Integer;
+  PageSize: Integer;
+begin
+  I := ScrollBar1.Position;
+  Count := ReplyInfoList.Count;
+  PageSize := Series1.Count;
+  J := Count - PageSize;
+  if I > J then
+    I := J;
+  I := PageSize - 1 - ValueIndex + I;
+  ListViewScrollTo(I, True);
 end;
 
 procedure TForm1.UpDown3ChangingEx(Sender: TObject; var AllowChange: Boolean;
@@ -246,15 +350,80 @@ begin
 end;
 
 procedure TForm1.Edit3KeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+var
+  Edit: TEdit absolute Sender;
 begin
   case Key of
-    VK_RETURN: SetHistoryLength(UpDown3.Position);
+    VK_RETURN:
+    begin
+      SetHistoryLength(UpDown3.Position);
+      if string(Edit.Text).ToInteger <> UpDown3.Position then
+        Edit.Text := UpDown3.Position.ToString;
+    end;
   end;
 end;
 
 procedure TForm1.Edit3Exit(Sender: TObject);
+var
+  Edit: TEdit absolute Sender;
 begin
   SetHistoryLength(UpDown3.Position);
+  if string(Edit.Text).ToInteger <> UpDown3.Position then
+    Edit.Text := UpDown3.Position.ToString;
+end;
+
+procedure TForm1.ListView1Data(Sender: TObject; Item: TListItem);
+var
+  StrItem: PListViewString;
+  iItem, I: Integer;
+begin
+  SyncListView;
+
+  iItem := Item.Index;
+  I := iItem - ListViewTopIndex;
+
+  if I < 0 then
+    Exit;
+  if I >= ListViewStrings.Count then
+    Exit;
+
+  StrItem := @ListViewStrings.List[I];
+  Item.Caption := PChar(StrItem.Title);
+  if Item.SubItems.Count > 0 then
+    Item.SubItems[0] := StrItem.Text
+  else
+    Item.SubItems.Add(StrItem.Text);
+end;
+
+procedure TForm1.ScrollBar1Scroll(Sender: TObject; ScrollCode: TScrollCode; var ScrollPos: Integer);
+var
+  I: Integer;
+begin
+  case ScrollCode of
+    scTrack:
+    begin
+      I := TScrollBar(Sender).Max - TScrollBar(Sender).PageSize;
+      if ScrollPos > I then
+        ScrollPos := I;
+    end;
+  end;
+end;
+
+procedure TForm1.ScrollBar1Change(Sender: TObject);
+var
+  ScrollBar: TScrollBar absolute Sender;
+  iStrat, iEnd, iMax: Integer;
+begin
+  RefreshSeries;
+  iStrat := ScrollBar.Position;
+  iEnd := iStrat + HistoryLength;
+  iMax := ReplyInfoList.Count - 1;
+  if iEnd > iMax then
+    iEnd := iMax;
+
+  ScrollBar.Hint := DateTimeToStr(ReplyInfoList.Items[iStrat].Timestamp) +
+                    ' ~ ' +
+                    DateTimeToStr(ReplyInfoList.Items[iEnd].Timestamp);
 end;
 
 procedure TForm1.Button2Click(Sender: TObject);
@@ -325,16 +494,63 @@ begin
   end;
 end;
 
-function TForm1.IsMemoScrollBottom: Boolean;
+function TForm1.ListViewScrollTo(ItemIndex: Integer; Select: Boolean): Boolean;
 var
   si: TScrollInfo;
+  TopR, R: TRect;
+  ItemHeight: Integer;
+  Item: TListItem;
+
+  function GetItemDisplayRect(Index: Integer): TRect;
+  begin
+    Result.left := LVIR_BOUNDS;
+    ListView1.Perform(LVM_GETITEMRECT, Index, LPARAM(@Result));
+  end;
 begin
+  Result := False;
+
   si.cbSize := SizeOf(si);
   si.fMask := SIF_ALL;
-  if GetScrollInfo(Memo1.Handle, SB_VERT, si) then
-    Result := si.nPos + Integer(si.nPage) = si.nMax + 1
-  else
-    Result := False;
+  if not GetScrollInfo(ListView1.Handle, SB_VERT, si) then
+    Exit;
+
+  try
+    TopR := GetItemDisplayRect(si.nPos);
+    R := GetItemDisplayRect(ItemIndex);
+
+    if R.Top < TopR.Top then
+    begin
+      ListView1.Scroll(R.Left, R.Top - TopR.Top);
+      Result := True;
+    end
+    else
+    begin
+      ItemHeight := ListView1.ClientHeight;
+      if R.Bottom > ItemHeight then
+      begin
+        ListView1.Scroll(R.Left, R.Top - (ItemHeight - TopR.Top));
+        Result := True;
+      end;
+    end;
+  finally
+    if Select then
+    begin
+      Item := ListView1.Items[ItemIndex];
+      Item.Selected := True;
+      ListView1.SetFocus;
+    end;
+    ListView1.Invalidate;
+  end;
+end;
+
+function TForm1.IsMemoScrollBottom: Boolean;
+begin
+  Result := CheckScrollBottom(Memo1);
+end;
+
+function TForm1.IsListViewScrollBottom: Boolean;
+begin
+  Result := CheckScrollBottom(ListView1);
 end;
 
 function TForm1.StatusPanel(ID: TStatusBarHint): TStatusPanel;
@@ -357,10 +573,7 @@ begin
   begin
     Inc(W, Panels[I].Width);
     if W > X then
-    begin
-      Result := I;
-      Exit;
-    end;
+      Exit(I);
     Inc(I);
   end;
   Result := Panels.Count - 1;
@@ -379,10 +592,12 @@ begin
     else if Count < NewLength then
       for I := Count to NewLength do
         Series1.AddNull(I);
+    RefreshSeriesPointer;
   finally
     Series1.EndUpdate;
   end;
   Chart1.Refresh;
+  RefreshScrollBarPageSize;
 end;
 
 procedure TForm1.ResetHistory;
@@ -396,9 +611,28 @@ begin
   finally
     Series1.EndUpdate;
   end;
+//  ScrollBar1.Min := 0;
+  ScrollBar1.PageSize := 0;
+  ScrollBar1.Position := ScrollBar1.Min;
+  ScrollBar1.Max := ScrollBar1.Min;
+end;
+
+procedure TForm1.RefreshScrollBarPageSize;
+var
+  PageSize: Integer;
+begin
+  PageSize := HistoryLength + 1;
+  ScrollBar1.Enabled := ReplyInfoList.Count > PageSize;
+  if ScrollBar1.Enabled then
+  begin
+    ScrollBar1.Max := ReplyInfoList.Count - 1;
+    ScrollBar1.PageSize := PageSize;
+  end;
 end;
 
 procedure TForm1.SstControlEnabled(State: Boolean);
+var
+  P: Cardinal;
 begin
   Button2.Enabled   := State;
   ComboBox1.Enabled := State;
@@ -409,11 +643,78 @@ begin
   UpDown2.Enabled   := State;
   Edit4.Enabled     := State;
   UpDown4.Enabled   := State;
+
+  if State then
+  begin // 展開面板
+    P := (Splitter1.Top shl 16) or (Splitter1.Width shr 1);
+    Splitter1.Perform(WM_LBUTTONDOWN, MK_LBUTTON, P);
+    Splitter1.Perform(WM_LBUTTONUP, MK_LBUTTON, P);
+    Splitter1.Perform(WM_LBUTTONDOWN, MK_LBUTTON, P);
+    Splitter1.Perform(WM_LBUTTONUP, MK_LBUTTON, P);
+    if Splitter1.Top < Splitter1.MinSize then
+    begin // 如果未達預期結果則直接設定控制項大小位置
+      Panel1.SetBounds(0, 0, Panel1.Width, Splitter1.MinSize);
+      Splitter1.Top := Splitter1.MinSize;
+    end;
+  end
+  else
+  begin // 收起面板
+    P := (Splitter1.MinSize shl (16 - 1)) or (Splitter1.Width shr 1);
+    Splitter1.Perform(WM_LBUTTONDOWN, MK_LBUTTON, (Splitter1.Top shl 16) or (Splitter1.Width shr 1));
+    Splitter1.Perform(WM_MOUSEMOVE, MK_LBUTTON, P);
+    Splitter1.Perform(WM_LBUTTONUP, MK_LBUTTON, P);
+    if Splitter1.Top >= Splitter1.MinSize then
+    begin // 如果未達預期結果則直接設定控制項大小位置
+      Panel1.SetBounds(0, 0, Panel1.Width, 0);
+      Splitter1.Top := 0;
+    end;
+  end;
 end;
 
 procedure TForm1.RefreshSeriesPointer;
 begin
-  Series1.Pointer.Visible := (Chart1.ClientWidth div UpDown3.Position) > (Series1.Pointer.Size * 2 + 2);
+  Series1.Pointer.Visible := (Chart1.ClientWidth div HistoryLength) > (Series1.Pointer.Size * 2 + 2);
+end;
+
+procedure TForm1.RefreshSeries;
+var
+  I, J, iEnd: Integer;
+  pReply: PReplyInfo;
+begin
+  //
+  // 更新回應時間圖表
+  //
+  iEnd := ScrollBar1.Position + HistoryLength;
+  if iEnd >= ReplyInfoList.Count then
+    iEnd := ReplyInfoList.Count - 1;
+
+  Series1.BeginUpdate;
+  try
+    for I := 0 to HistoryLength do
+    begin
+      if I < ReplyInfoList.Count then
+      begin
+        J := iEnd - I;
+        pReply := @ReplyInfoList.List[J];
+        if pReply.IsValid then
+        begin
+          Series1.YValue[I] := pReply.RoundTripTime;
+          Series1.ValueColor[I] := clGreen;
+        end
+        else
+        begin
+          Series1.SetNull(I);
+        end;
+      end
+      else if I < Series1.Count then
+        Series1.SetNull(I)
+      else
+        Series1.AddNull();
+    end;
+
+  finally
+    Series1.EndUpdate;
+  end;
 end;
 
 function TForm1.InsertTimeStamp(const s: string): string;
@@ -432,6 +733,96 @@ begin
   LogsBuff.Clear;
 end;
 
+procedure TForm1.ClearReplyInfo;
+begin
+  ScrollBar1.Position := ScrollBar1.Min;
+  ScrollBar1.Max := ScrollBar1.Min;
+  ScrollBar1.Enabled := False;
+  ListView1.Clear;
+  ReplyInfoList.Clear;
+end;
+
+function TForm1.AddReplyInfo(const ReplyInfo: TReplyInfo): Integer;
+var
+  IsScrollBottom: Boolean;
+begin
+  ReplyInfoList.Add(ReplyInfo);
+
+  IsScrollBottom := ScrollBar1.Position >= ScrollBar1.Max - ScrollBar1.PageSize;
+  RefreshScrollBarPageSize;
+  if IsScrollBottom then
+    ScrollBar1.Position := ScrollBar1.Max;
+
+  ListView1.Items.BeginUpdate;
+  IsScrollBottom := IsListViewScrollBottom;
+  try
+    Result := ListView1.Items.Count;
+    // 設定 ListView1.Items.Count 並只重繪受影響的顯示區且不做焦點捲動
+    // 若直接設定 ListView1.Items.Count，由於未指定 LVSICF_NOSCROLL 因此會導致捲動至焦點 Item
+    ListView1.Perform(LVM_SETITEMCOUNT, Result + 1, LVSICF_NOINVALIDATEALL or LVSICF_NOSCROLL);
+  finally
+    ListView1.Items.EndUpdate;
+  end;
+  if IsScrollBottom then
+    ListViewScrollTo(Result);
+end;
+
+procedure TForm1.FormatInfo(var ValueOut: TListViewString; const ValueIn: TReplyInfo);
+begin
+  ValueOut.Title := FormatDateTime('yyyy/mm/dd hh:nn:ss.zzz', ValueIn.Timestamp);
+  ValueOut.Text := ValueIn.GetErrorMessage;
+  if ValueOut.Text.IsEmpty then
+    ValueOut.Text := Format('Replies: %u, RoundTripTime: %ums.', [ValueIn.Replies, ValueIn.RoundTripTime]);
+end;
+
+procedure TForm1.SyncListView;
+var
+  si: TScrollInfo;
+  Info: TReplyInfo;
+  StrItem: TListViewString;
+  I, J: Integer;
+  procedure Delete(Index: Integer);
+  var
+    Temp: TListViewString;
+  begin
+    Temp := ListViewStrings.Items[Index];
+    Temp.Title := '';
+    Temp.Text := '';
+    ListViewStrings.Delete(Index);
+  end;
+begin
+  si.cbSize := SizeOf(si);
+  si.fMask := SIF_ALL;
+  if not GetScrollInfo(ListView1.Handle, SB_VERT, si) then
+    Exit;
+
+  if si.nPos < ListViewTopIndex then
+  begin
+    for I := 0 to Min(ListViewTopIndex - si.nPos, ListViewStrings.Count) - 1 do
+      Delete(ListViewStrings.Count - 1);
+    for I := ListViewStrings.Count to si.nPage - 1 do
+    begin
+      J := si.nPos + I;
+      Info := ReplyInfoList[J];
+      FormatInfo(StrItem, Info);
+      ListViewStrings.Insert(0, StrItem);
+    end;
+  end
+  else
+  begin
+    for I := 0 to Min(si.nPos - ListViewTopIndex, ListViewStrings.Count) - 1 do
+      Delete(0);
+    for I := ListViewStrings.Count to si.nPage - 1 do
+    begin
+      J := si.nPos + I;
+      Info := ReplyInfoList[J];
+      FormatInfo(StrItem, Info);
+      ListViewStrings.Add(StrItem);
+    end;
+  end;
+  ListViewTopIndex := si.nPos;
+end;
+
 procedure TForm1.SyncOnBefore;
 begin
   SstControlEnabled(False);
@@ -439,6 +830,7 @@ begin
   Memo1.Clear;
   LastStr1 := '';
   LastStr2 := '';
+  FirstStatusIndex := -1;
 
   FormAddrStr := ComboBox1.Text;
   ToAddrStr := ComboBox2.Text;
@@ -449,6 +841,8 @@ begin
 
   Replies := 0;
   ResetHistory;
+
+  ClearReplyInfo;
 end;
 
 procedure TForm1.SyncOnAfter;
@@ -465,6 +859,7 @@ begin
   Memo1.Lines.BeginUpdate;
   try
     FlushLogsBuff; // 將所有日誌緩衝區的訊息全部輸入至 Memo1 中，然後清除日誌緩衝區
+    FirstStatusIndex := Memo1.Lines.Count;
   finally
     Memo1.Lines.EndUpdate;
   end;
@@ -476,8 +871,8 @@ end;
 procedure TForm1.SyncOnStatus;
 var
   Scrolling: Boolean;
-  I, J: Integer;
-  pReply: PIcmpEchoReplyEx;
+  I: Integer;
+  IcmpEcho: PIcmpEchoReplyEx;
   s: string;
   function GetRoundTripTimeStatus(const P: TPing): string; inline;
   var
@@ -485,7 +880,7 @@ var
     function FormatRTT(Value: Word): string; overload; inline;
     begin
       if Value = 0 then
-        Result := '<1' // 只是表示最小無限接近 0 但不可能等於 0 而已
+        Result := '<1' // 只是表示最小無限接近 0 因為時間不可能等於 0
       else
         Result := Value.ToString;
     end;
@@ -499,56 +894,25 @@ var
     Result := Format('Min: %sms, Max: %sms, Average: %sms', [Min, Max, Average]);
   end;
 begin
-  s := Ping.ErrorMessage;   // 取得錯誤訊息
-  pReply := Ping.EchoReply; // 取得答應緩衝區指標
+  AddReplyInfo(ReplyInfo);
+  s := ReplyInfo.GetErrorMessage;   // 取得錯誤訊息
+  IcmpEcho := Ping.EchoReply;
 
-  //
-  // 更新回應時間圖表
-  //
-  Series1.BeginUpdate;
-  try
-    // 往後移動舊的圖表
-    for I := Series1.Count - 2 downto 0 do
-    begin
-      Series1.YValue[I + 1] := Series1.YValue[I];
-      Series1.ValueColor[I + 1] := Series1.ValueColor[I];
-    end;
-
-    // 取得回應時間
-    I := -1;
-    if s.IsEmpty then
-    begin
-      case Ping.Family of
-      AF_INET : if pReply.v4.Status = IP_SUCCESS then I := pReply.v4.RoundTripTime;
-      AF_INET6: if pReply.v6.Status = IP_SUCCESS then I := pReply.v6.RoundTripTime;
-      end;
-    end;
-
-    // 填入最新回應時間
-    if I < 0 then
-      Series1.SetNull(0)
-    else
-    begin
-      Series1.YValue[0] := I;
-      Series1.ValueColor[0] := clGreen;
-    end;
-  finally
-    Series1.EndUpdate;
-  end;
+  RefreshSeries;
 
   if s.IsEmpty then
   begin
     // 回應結果的訊息
-    case Ping.Family of
+    case ReplyInfo.Family of
     AF_INET:
       s := Format(
         'Reply from %s, RoundTripTime: %ums, Size: %u, TTL: %u, TOS: %u, Flags: %u.', [
-        AddressToString(pReply.v4.Address), pReply.v4.RoundTripTime, pReply.v4.DataSize,
-        pReply.v4.Options.Ttl, pReply.v4.Options.Tos, pReply.v4.Options.Flags]);
+        AddressToString(ReplyInfo.Address.v4), ReplyInfo.RoundTripTime, Ping.RequestSize,
+        IcmpEcho.v4.Options.Ttl, IcmpEcho.v4.Options.Tos, IcmpEcho.v4.Options.Flags]);
     AF_INET6:
       s := Format(
         'Reply from %s, RoundTripTime: %ums.', [
-        AddressToString(pReply.v6.Address.sin6_addr), pReply.v6.RoundTripTime]);
+        AddressToString(ReplyInfo.Address.v6), ReplyInfo.RoundTripTime]);
     else s := '';
     end;
   end;
@@ -556,14 +920,12 @@ begin
   // 檢查目前 Memo1 檢視區域是否顯示最後一行
   Scrolling := IsMemoScrollBottom;
 
-  // 如果訊息發生異動，則顯示最新訊息，用於大幅減少紀錄
+  // 輸出訊息，只保留最近的訊息
   Memo1.Lines.BeginUpdate;
   try
-    J := Memo1.Lines.Count - 1;
-    if LastStr1.IsEmpty or (LastStr1 <> LastStr2) then
-      Memo1.Lines.Add(InsertTimeStamp(s))
-    else
-      Memo1.Lines[J] := InsertTimeStamp(s);
+    for I := Memo1.Lines.Count - HistoryLength downto FirstStatusIndex do
+      Memo1.Lines.Delete(I);
+    Memo1.Lines.Add(InsertTimeStamp(s));
   finally
     Memo1.Lines.EndUpdate;
   end;
@@ -599,6 +961,7 @@ var
   Hints: TAddrInfoW;
   ToAddresses: TAddrInfoList;
   pInfo: PAddrInfo;
+  Option: TIpOptionInformation;
   I: Integer;
   b: Boolean;
 begin
@@ -639,7 +1002,7 @@ begin
         if b then
           b := ToAddresses.Count > 0;
 
-        if not b then
+        if not b then // 沒有任何符合的位址資訊
         begin
           Sender.Terminate;
           LogsBuff.Add(Format(
@@ -649,13 +1012,13 @@ begin
         end;
 
         case ToAddresses.Count of
-          1:
+          1:   // 只有單筆位址資訊
           begin
             ToIP := ToAddresses.List[0].addr;
             LogsBuff.Add(Format('Domain %s IP[%d]: %s', [ToAddrStr,
               ToAddresses.Count, AddressToString(ToIP)]));
           end;
-          else
+          else // 多筆位址資訊
           begin
             LogsBuff.Add(Format('Domain %s IP[%d]: ', [ToAddrStr, ToAddresses.Count]));
             b := True;
@@ -685,11 +1048,14 @@ begin
     Ping.CreatRequest(RequestSize);
 
     LogsBuff.Add(Format(
-      'Ping form %s to %s, Timeout %ums, Interval %ums.', [
-      AddressToString(FormIP), AddressToString(ToIP), TimeoutMS, IntervalMS]));
-    LogsBuff.Add(Format(
-      'Request size: %ubytes, Options: Ttl %d, Tos %d, Flags 0x%0.2X.', [
-      Ping.RequestSize, Ping.Options.Ttl, Ping.Options.Tos, Ping.Options.Flags]));
+      'Ping form %s to %s, RequestSize: %ubytes, Timeout %ums, Interval %ums.', [
+      AddressToString(FormIP), AddressToString(ToIP), RequestSize, TimeoutMS, IntervalMS]));
+    if Ping.GetIpOptions(Option) then // 如 Ping 的 IpOptions 有被設定時
+    begin
+      LogsBuff.Add(Format(
+        'Options: Ttl %d, Tos %d, Flags 0x%0.2X.', [
+        Option.Ttl, Option.Tos, Option.Flags]));
+    end;
   finally
     // 與主執行續同步，通知主執行續初始化作業結束
     Sender.Synchronize(SyncOnBegin);
@@ -715,6 +1081,7 @@ begin
 
     // 執行 Ping，結束後回傳 回應數
     Replies := Ping.SendEcho;
+    Ping.GetReplyInfo(ReplyInfo);
 
     // 與主執行續同步，更新介面狀態
     IdThreadComponent1.Synchronize(SyncOnStatus);

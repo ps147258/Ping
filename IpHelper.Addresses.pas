@@ -166,11 +166,11 @@ type
 
   // IPv6 的連接位址資訊，包含 Family (定義在 Indy 的 IdWinsock2 中)
   sockaddr_in6 = packed record
-    sin6_family   : Smallint; // AF_INET6
-    sin6_port     : u_short;  // Transport level port number
-    sin6_flowinfo : u_long;   // IPv6 flow information
-    sin6_addr     : TIn6Addr; // IPv6 address
-    sin6_scope_id : u_long;   // set of interfaces for a scope
+    sin6_family  : Smallint; // AF_INET6
+    sin6_port    : u_short;  // Transport level port number
+    sin6_flowinfo: u_long;   // IPv6 flow information
+    sin6_addr    : TIn6Addr; // IPv6 address
+    sin6_scope_id: u_long;   // set of interfaces for a scope
   end;
   TSockaddrIn6 = sockaddr_in6;
   PSockaddrIn6 = ^TSockaddrIn6;
