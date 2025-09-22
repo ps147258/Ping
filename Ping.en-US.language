@@ -1,0 +1,106 @@
+﻿; Ping v1.0.4
+
+[UI]
+; Address
+labelAdapter = Address
+labelAddressForm = From
+labelAddressTo = to
+	
+; Options
+labelTimeout = Timeout
+labelInterval = Interval
+labelRequestSize = Request size
+
+; Chart
+labelChartScale = Chart Scale
+
+; Button
+btnSelect = Select
+btnStop = Stop
+btnStart = Start
+
+; Page
+sheetStatus = Status
+sheetReply = Reply
+
+; List
+columnTime = Time
+columnInfomation = Infomation
+
+;
+; Satus
+;
+
+; One parameter: string(form numbers).
+statusPings = Pings: %s
+statusPingsTitle = Number of pings
+statusPingsText = Number of executions of Windows API ICMP Ping.
+
+; One parameter: string(form numbers).
+statusFails = Fails: %s
+statusFailsTitle = Number of failures
+statusFailsText = API failure and package loss.
+
+; One parameter: string(form numbers).
+statusLoss = Lost: %s
+statusLossTitle = Number of loss
+statusLossText = The status of the response was unsuccessful.
+
+; One parameter: string(form numbers).
+statusRate = Loss: %s
+statusRateTitle = Rate of Failures
+statusRateText = Rate of the API failure and package loss.
+
+; One parameter: string(form numbers).
+statusTimes = Timeouts: %s
+statusTimesTitle = Times of timeout
+statusTimesText = The response status is timeout or RTT timeout.
+
+; One parameter: string(form recordStatistics format, is already a message string).
+statusReply = %s
+statusReplyTitle = Response time
+statusReplyText = Minimum, maximum and average by RTT.
+
+; Adapter
+formAdapterTitle = Adapters
+labelAdapterHint = Double-click or press the [Enter] key to select the item and close the window.
+btnAdapterSelect = Confirm
+columnAdapterUnicast = Unicast
+columnAdapterGateway = Gateway
+
+[Message]
+; One parameter: TDateTime(for Timestamp conversion to string format).
+logTimeStamp = 'mm/dd hh:nn:ss.zzz '
+; One parameter: string(An exception message string).
+logException = Exception: %s
+logTerminated = Terminated.
+; Two parameters: 4byte unsigned integer.
+logReplyInfo = Replies: %u, RoundTripTime: %ums.
+logMissingAddress= Missing input source or destination address.
+logUnableDomainToIP= Unable to get address data corresponding to source address string.
+; Two parameters: string(domain), string(host domain information).
+logDomainNoFound = Domain %s IP: <No IP found with the same source family %s>.
+; Three parameters: string(domain), 4byte integer(A index in the list), string(host domain information)).
+logDomainSingle = Domain %s IP[%d]: %s
+; Two parameters: string(domain), 4byte integer(A index in the list).
+logDomainMultiple = 'Domain %s IP[%d]: '
+; Five parameters: string(Local host), string(Target host), 4byte unsigned integer three parameters.
+logPingForm = Ping form %s to %s, RequestSize: %ubytes, Timeout %ums, Interval %ums.
+; Three parameters: 1byte unsigned integer three parameters.
+logOptions = Options: Ttl %d, Tos %d, Flags 0x%0.2X.
+
+; One parameter: TDateTime(Timestamp conversion to string format). 
+recordTimeStamp = yyyy/mm/dd hh:nn:ss.zzz
+; No parameters.
+recordStatisUnknown = Min: ?ms, Max: ?ms, Average: ?ms
+; Three parameters: string(numeric string) three parameters.
+recordStatistics = Min: %sms, Max: %sms, Average: %sms
+
+; Six parameters: string(Remote host), 4byte unsigned integer, 4byte unsigned integer three parameters.
+recordReplyIPv4 = Reply from %s, RoundTripTime: %ums, Size: %u, TTL: %u, TOS: %u, Flags: 0x%0.2X.
+; Two parameters: string(Remote host), 4byte unsigned integer.
+recordReplyIPv6 = Reply from %s, RoundTripTime: %ums.
+
+[Error]
+errStatusHintOver = Value [%d] is outside the recognized range of type TStatusBarHint.
+errAdapterList = Adapter list error.

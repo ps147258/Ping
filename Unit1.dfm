@@ -20,7 +20,6 @@ object Form1: TForm1
   OnMouseLeave = FormMouseLeave
   OnResize = FormResize
   OnShow = FormShow
-  PixelsPerInch = 96
   DesignSize = (
     697
     441)

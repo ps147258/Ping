@@ -1,0 +1,106 @@
+﻿; Ping v1.0.4
+
+[UI]
+; 網路介面
+labelAdapter = 位址
+labelAddressForm = 從
+labelAddressTo = 到
+	
+; 選項
+labelTimeout = 超時
+labelInterval = 間隔
+labelRequestSize = 請求大小
+
+; Chart
+labelChartScale = 圖表範圍
+
+; 按鈕
+btnSelect = 選取
+btnStop = 停止
+btnStart = 開始
+
+; 頁面
+sheetStatus = 狀態
+sheetReply = 回覆
+
+; List
+columnTime = 時間
+columnInfomation = 訊息
+
+;
+; 狀態
+;
+
+; 單參數：string(數值字串)
+statusPings = Ping：%s
+statusPingsTitle = Ping的次數
+statusPingsText = 執行 Windows API ICMP Ping 的次數。
+
+; 單參數：string(數值字串)
+statusFails = 錯誤：%s
+statusFailsTitle = 錯誤的次數
+statusFailsText = API 失敗次數 與 封包遺失次數。
+
+; 單參數：string(數值字串)
+statusLoss = 遺失：%s
+statusLossTitle = 遺失的次數
+statusLossText = 狀態回應為不成功的次數。
+
+; 單參數：string(數值字串)
+statusRate = 遺失率：%s
+statusRateTitle = 遺失率
+statusRateText = API 失敗次數 與 封包遺失次數 對於 Ping 次數的百分比率。
+
+; 單參數：string(數值字串)
+statusTimes = 超時：%s
+statusTimesTitle = 超時的次數
+statusTimesText = 狀態回應超時 與 往返時間(RTT) 超時。
+
+; 單參數：string(經由 recordStatistics 格式化後的字串)
+statusReply = %s
+statusReplyTitle = 回應時間
+statusReplyText = 往返時間(RTT) 的 最小，最大 與 平均。
+
+; 網路介面
+formAdapterTitle = 網路介面
+labelAdapterHint = 直接在項目上點兩下 或 選取項目後按下[Enter]鍵。
+btnAdapterSelect = 確認
+columnAdapterUnicast = 位址
+columnAdapterGateway = 閘道
+
+[Message]
+; 單參數：TDateTime(用來提供給訊息前的時間戳記字串).
+logTimeStamp = 'mm/dd hh:nn:ss.zzz '
+; 單參數：string(例外訊息字串)
+logException = 例外：%s
+logTerminated = 終止。
+; 雙參數：4位元組的無號整數
+logReplyInfo = 回覆數：%u，往返時間(RTT)：%ums。
+logMissingAddress = 缺少本機位址或目標位址。
+logUnableDomainToIP = 無法取得與網域名稱對應的位址資料。
+; 雙參數：string(網域名稱)，string(網域名稱的資訊)
+logDomainNoFound = 網域 %s IP：<未找到 %s 的 IP>。
+; 三參數：string(網域名稱)，4位元組的整數(清單的索引)，string(網域資訊))
+logDomainSingle = 網域 %s IP[%d]：%s
+; 雙參數：string(網域名稱)，4位元組的整數(清單的索引)
+logDomainMultiple = 網域 %s IP[%d]：
+; 五參數：string(本機位址)，string(目標位址)，4位元組的無號整數 三個
+logPingForm = Ping 由 %s 至 %s，請求大小 %ubytes，超時時間 %ums，間格時間 %ums。
+; 三參數：1位元組的無號整數 三個
+logOptions = 選項：Ttl %d、Tos %d、旗標 0x%0.2X。
+
+; 單參數：TDateTime(用於表示時間的時間格式). 
+recordTimeStamp = yyyy/mm/dd hh:nn:ss.zzz
+; 無參數
+recordStatisUnknown = 最小：?ms、最大：?ms、平均：?ms
+; 三參數：string(數值字串)三個
+recordStatistics = 最小：%sms、最大：%sms、平均：%sms
+
+; 六參數：string(目標位址)，4位元組的無號整數，1位元組的無號整數 三個
+recordReplyIPv4 = 回應由 %s，往返時間(RTT) %ums，大小 %u，TTL %u，TOS %u，旗標 0x%0.2X。
+; 雙參數：string(目標位址)，4位元組的無號整數
+recordReplyIPv6 = 回應由 %s，往返時間(RTT) %ums。
+
+[Error]
+errStatusHintOver = 值 [%d] 超出了 TStatusBarHint 清單索引範圍。
+errAdapterList = 網路介面清單錯誤。

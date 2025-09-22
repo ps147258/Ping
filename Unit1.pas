@@ -1,5 +1,5 @@
 ﻿// Type: Ping tool - Application main form.
-// Author: 2022 Wei-Lun Huang
+// Author: 2022-2025 Wei-Lun Huang
 // Description: Application Ping main form.
 //
 // Features:
@@ -8,7 +8,7 @@
 //
 // Tested in Delphi 10 Seattle.
 //
-// Last modified date: May 10, 2022.
+// Last modified date: Sep 22, 2025.
 
 unit Unit1;
 
@@ -17,10 +17,11 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, Winapi.CommCtrl,
   Winapi.WinSock, Winapi.MMSystem, Winapi.IpExport, Winapi.Winsock2,
-  System.SysUtils, System.Variants, System.Classes, System.Math, System.AnsiStrings,
-  System.Generics.Collections,
-  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls,
-  VclTee.TeeGDIPlus, VCLTee.TeEngine, VCLTee.Series, VCLTee.TeeProcs, VCLTee.Chart,
+  System.SysUtils, System.Variants, System.Classes, System.Math, System.IniFiles,
+  System.AnsiStrings, System.Generics.Collections,
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls,
+  Vcl.ComCtrls, VclTee.TeeGDIPlus, VCLTee.TeEngine, VCLTee.Series, VCLTee.TeeProcs,
+  VCLTee.Chart,
   IdBaseComponent, IdThreadComponent,
   IpHelper.Addresses, IpHelper.Adapters, IpHelper.IcmpPing;
 
@@ -92,7 +93,14 @@ type
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
   private type
-    TStatusBarHint = (_SBH_Pings, _SBH_Fails, _SBH_Loss, _SBH_Rate, _SBH_Times, _SBH_Reply);
+    TStatusBarHint = (
+      _SBH_Pings, // _SBH_Pings - 總數
+      _SBH_Fails, // _SBH_Fails - 失敗數 (API 錯誤 與 回應失敗)
+      _SBH_Loss,  // _SBH_Loss  - 回應失敗數
+      _SBH_Rate,  // _SBH_Rate  - 回應失敗率
+      _SBH_Times, // _SBH_Times - 超時數
+      _SBH_Reply  // _SBH_Reply - 回應時間狀態
+    );
     TStatusBarHintCllass = (_SBHC_Title, _SBHC_Description);
 
     // ListView1 字串緩衝
@@ -102,14 +110,6 @@ type
       Text: string;
     end;
     TListViewStrings = TList<TListViewString>; // ListView1 字串緩衝
-  private const
-    cStatusBarHints: array[TStatusBarHint, TStatusBarHintCllass] of string = (
-      ('Number of pings'   , 'Number of executions of Windows API ICMP Ping.'), // _SBH_Pings - 總數
-      ('Number of failures', 'API failure and package loss.'),                  // _SBH_Fails - 失敗數 (API 錯誤 與 回應失敗)
-      ('Number of loss'    , 'The status of the response was unsuccessful.'),   // _SBH_Loss  - 回應失敗數
-      ('Rate of Failures'  , 'Rate of the API failure and package loss.'),      // _SBH_Rate  - 回應失敗率
-      ('Times of timeout'  , 'The response status is timeout or RTT timeout.'), // _SBH_Times - 超時數
-      ('Response time'     , 'Minimum, maximum and average by RTT.'));          // _SBH_Reply - 回應時間狀態
   private
     { Private declarations }
     LastPingError: Cardinal;
@@ -120,6 +120,8 @@ type
     ListViewTopIndex: Integer;         // ListView1 字串快取所指向的起始索引
     ListViewStrings: TListViewStrings; // ListView1 顯示區的字串快取
 
+    procedure InitializeLanguageUI;
+    procedure LoadLanguageUI;
     procedure AddToComboBox(ComboBox: TComboBox; const s: string); inline;
     procedure AddToComboBox1(const s: string); inline;
     procedure AddToComboBox2(const s: string); inline;
@@ -136,7 +138,7 @@ type
     procedure RefreshSeriesPointer;                 // 以圖表節點密集度切換節點顯示
     procedure RefreshSeries;                        // 更新圖表
 
-    function InsertTimeStamp(const s: string): string; inline;
+    function InsertTimeStamp(const s: string): string; //inline;
     procedure FlushLogsBuff;  // 將訊息緩衝排至 Memo1
     procedure ClearReplyInfo; // 清除歷史訊息
     function AddReplyInfo(const ReplyInfo: TReplyInfo): Integer; // 加入歷史訊息
@@ -158,15 +160,180 @@ var
 implementation
 
 uses
-  Unit2, Debug;
-
-resourcestring
-  errStatusHintOver = 'Value [%d] is outside the recognized range of type TStatusBarHint.';
+  Unit2;//, Debug;
 
 type
   TReplyInfoList = TList<TReplyInfo>;
 
+  TUI_Language = record
+    Text: string;
+    Hint: string;
+    Description: string;
+  end;
+  PUI_Language = ^TUI_Language;
+
+  TControlLanguage = record
+    IdName: string;
+    Control: TPersistent;
+    Language: TUI_Language;
+  end;
+  PControlLanguage = ^TControlLanguage;
+
+  TSectionId = (SI_Id, SI_Message);
+
+  TUI = (
+    // Address
+    UI_LabelAdapter,
+    UI_LabelAddressForm,
+    UI_LabelAddressTo,
+
+    // Options
+    UI_LabelTimeout,
+    UI_LabelInterval,
+    UI_LabelRequestSize,
+
+    // Chart
+    UI_LabelChartScale,
+
+    // Button
+    UI_BtnSelect,
+    UI_BtnStop,
+    UI_BtnStart,
+
+    // Page
+    UI_SheetStatus,
+    UI_SheetReply,
+
+    // List
+    UI_ColumnTime,
+    UI_ColumnInfomation,
+
+    // Status
+    UI_StatusPings,
+    UI_StatusFails,
+    UI_StatusLoss,
+    UI_StatusTimes,
+    UI_StatusRate,
+    UI_StatusReply,
+
+    // Adapter
+    UI_FormAdapterTitle,
+    UI_LabelAdapterHint,
+    UI_BtnAdapterSelect,
+    UI_ColumnAdapterUnicast,
+    UI_ColumnAdapterGateway
+  );
+
+  TUI_TextType = (UITT_Text, UITT_Hint, UITT_Description);
+
+  TUI_Text = array[TUI_TextType] of string;
+
+  TAppMessage = (
+    // 操作回應訊息
+    AM_logTimeStamp,
+    AM_logException,
+    AM_logTerminated,
+    AM_logReplyInfo,
+    AM_logMissingAddress,
+    AM_logUnableDomainToIP,
+    AM_logDomainNoFound,
+    AM_logDomainSingle,
+    AM_logDomainMultiple,
+    AM_logPingForm,
+    AM_logOptions,
+
+    AM_recordTimeStamp,
+    AM_recordStatisUnknown,
+    AM_recordStatistics,
+    AM_recordReplyIPv4,
+    AM_recordReplyIPv6,
+
+    // 錯誤與例外訊息
+    AM_errStatusHintOver,
+    AM_errAdapterList
+  );
+
+const
+  SectionUI: array[TSectionId] of string = ('UI', 'Message');
+
+  Hint_Title = 'Title';
+  Hint_Text = 'Text';
+
+  UI_Id: array[TUI] of string = (
+    // Address
+    'labelAdapter',
+    'labelAddressForm',
+    'labelAddressTo',
+
+    // Options
+    'labelTimeout',
+    'labelInterval',
+    'labelRequestSize',
+
+    // Chart
+    'labelChartScale',
+
+    // Button
+    'btnSelect',
+    'btnStop',
+    'btnStart',
+
+    // Page
+    'sheetStatus',
+    'sheetReply',
+
+    // List
+    'columnTime',
+    'columnInfomation',
+
+    // Status
+    'statusPings',
+    'statusFails',
+    'statusLoss',
+    'statusTimes',
+    'statusRate',
+    'statusReply',
+
+    // Adapter
+    'formAdapterTitle',
+    'labelAdapterHint',
+    'btnAdapterSelect',
+    'columnAdapterUnicast',
+    'columnAdapterGateway'
+  );
+
+  UI_TextType: TUI_Text = ('Text', 'Hint', 'Description');
+
+
+  AppMessageId: array[TAppMessage] of string = (
+    // 操作回應訊息
+    'logTimeStamp',
+    'logException',
+    'logTerminated',
+    'logReplyInfo',
+    'logMissingAddress',
+    'logUnableDomainToIP',
+    'logDomainNoFound',
+    'logDomainSingle',
+    'logDomainMultiple',
+    'logPingForm',
+    'logOptions',
+
+    'recordTimeStamp',
+    'recordStatisUnknown',
+    'recordStatistics',
+    'recordReplyIPv4',
+    'recordReplyIPv6',
+
+    // 錯誤與例外訊息
+    'errStatusHintOver',
+    'errAdapterList'
+  );
+
 var
+  UI: array[TUI] of TControlLanguage;
+  AppMessage: array[TAppMessage] of string;
+
   Ping: TPing = nil;                    // Windows API IcmpSendEcho 的包裝物件
   FormIP, ToIP: TSockAddr;              // sockaddr 資訊
   FormAddrStr, ToAddrStr: string;       // 位置字串
@@ -190,6 +357,131 @@ begin
     Result := si.nPos + Integer(si.nPage) = si.nMax + 1
   else
     Result := False;
+end;
+
+function SetControlLanguage(iUI: TUI): Boolean;
+var
+  CL: PControlLanguage;
+begin
+  CL := @UI[iUI];
+  if CL.Language.Text.IsEmpty then
+    Exit(False);
+
+  if CL.Control is TLabel then
+  begin
+    TLabel(CL.Control).Caption := CL.Language.Text;
+    Exit(True);
+  end;
+
+  if CL.Control is TTabSheet then
+  begin
+    TTabSheet(CL.Control).Caption := CL.Language.Text;
+    Exit(True);
+  end;
+
+  if CL.Control is TButton then
+  begin
+    TButton(CL.Control).Caption := CL.Language.Text;
+    Exit(True);
+  end;
+
+  if CL.Control is TListColumn then
+  begin
+    TListColumn(CL.Control).Caption := CL.Language.Text;
+    Exit(True);
+  end;
+
+  if CL.Control is TForm then
+  begin
+    TForm(CL.Control).Caption := CL.Language.Text;
+    Exit(True);
+  end;
+
+  Result := False;
+end;
+
+procedure SetLanguage(var CL: TControlLanguage; const Text: string; const Hint: string = ''; const Description: string = ''); overload;
+begin
+  CL.Language.Text := Text;
+  CL.Language.Hint := Hint;
+  CL.Language.Text := Description;
+end;
+
+procedure SetLanguage(iUI: TUI; const Text: string; const Hint: string = ''; const Description: string = ''); overload;
+begin
+  SetLanguage(UI[iUI], Text, Hint, Description);
+end;
+
+procedure SetLanguageBase(iUI: TUI; Control: TPersistent; const Text: string = ''; const Hint: string = ''; const Description: string = '');
+var
+  pItem: PControlLanguage;
+begin
+  pItem := @UI[iUI];
+  pItem.IdName := UI_Id[iUI];
+  pItem.Control := Control;
+  SetLanguage(pItem^, Text, Hint, Description);
+end;
+
+function LoadLanguage(const IniFileName: string = ''): Boolean;
+var
+  rss: TResourceStream;
+  ini: TMemIniFile;
+  iUI: TUI;
+  iMsg: TAppMessage;
+  CL: PControlLanguage;
+  s: string;
+begin
+  Result := False;
+
+  if IniFileName.IsEmpty then
+    rss := TResourceStream.Create(HInstance, 'LanguageIni', RT_RCDATA)
+  else
+    if FileExists(IniFileName, False) then
+      rss := nil
+    else
+      Exit;
+  try
+    if Assigned(rss) then
+      ini := TMemIniFile.Create(rss)
+    else
+      ini := TMemIniFile.Create(IniFileName);
+
+    try
+      for iUI := Low(TUI) to High(TUI) do
+      begin
+        CL := @UI[iUI];
+        s := UI_Id[iUI];
+
+        CL.Language.Text := ini.ReadString(SectionUI[SI_Id], s, '');
+        CL.Language.Hint := ini.ReadString(SectionUI[SI_Id], s + Hint_Title, '');
+        CL.Language.Description := ini.ReadString(SectionUI[SI_Id], s + Hint_Text, '');
+
+        if not Result then
+          Result := CL.Language.Text.IsEmpty;
+      end;
+
+      for iMsg := Low(TAppMessage) to High(TAppMessage) do
+      begin
+        s := ini.ReadString(SectionUI[SI_Message], AppMessageId[iMsg], '');
+        AppMessage[iMsg] := s.DeQuotedString;
+      end;
+    finally
+      ini.Free;
+    end;
+  finally
+    if Assigned(rss) then
+      rss.Free;
+  end;
+end;
+
+procedure UpdateLanguageUI;
+var
+  iUI: TUI;
+begin
+  for iUI := Low(TUI) to High(TUI) do
+  begin
+    SetControlLanguage(iUI);
+  end;
 end;
 
 {$R *.dfm}
@@ -237,6 +529,9 @@ procedure TForm1.FormShow(Sender: TObject);
 var
   Unicast, Gateway: TSockAddr;
 begin
+  InitializeLanguageUI;
+  LoadLanguageUI;
+
   Form2.RefreshAdapter;
   AddAdapterAddressesToComboBox;
   if Form2.GetFirstAddress(Unicast, Gateway) then
@@ -267,6 +562,68 @@ begin
   Panel1.Top := 0;
 end;
 
+procedure TForm1.InitializeLanguageUI;
+begin
+  //
+  // Form1
+  //
+  SetLanguageBase(UI_LabelAdapter, Label5);
+  SetLanguageBase(UI_LabelAddressForm, Label1);
+  SetLanguageBase(UI_LabelAddressTo, Label2);
+  SetLanguageBase(UI_LabelTimeout, Label3);
+  SetLanguageBase(UI_LabelInterval, Label4);
+  SetLanguageBase(UI_LabelRequestSize, Label7);
+  SetLanguageBase(UI_LabelChartScale, Label6);
+
+  SetLanguageBase(UI_BtnSelect, Button2);
+  SetLanguageBase(UI_BtnStop, Button1);
+  SetLanguageBase(UI_BtnStart, Button1);
+
+  SetLanguageBase(UI_SheetStatus, TabSheet1);
+  SetLanguageBase(UI_SheetReply, TabSheet2);
+
+  SetLanguageBase(UI_ColumnTime, ListView1.Column[0]);
+  SetLanguageBase(UI_ColumnInfomation, ListView1.Column[1]);
+
+  SetLanguageBase(UI_StatusPings, StatusPanel(_SBH_Pings));
+  SetLanguageBase(UI_StatusFails, StatusPanel(_SBH_Fails));
+  SetLanguageBase(UI_StatusLoss, StatusPanel(_SBH_Loss));
+  SetLanguageBase(UI_StatusTimes, StatusPanel(_SBH_Rate));
+  SetLanguageBase(UI_StatusRate, StatusPanel(_SBH_Times));
+  SetLanguageBase(UI_StatusReply, StatusPanel(_SBH_Reply));
+
+  //
+  // Form2
+  //
+  SetLanguageBase(UI_FormAdapterTitle, Form2);
+  SetLanguageBase(UI_LabelAdapterHint, Form2.Label1);
+  SetLanguageBase(UI_BtnAdapterSelect, Form2.Button1);
+  SetLanguageBase(UI_ColumnAdapterUnicast, Form2.ListView1.Column[0]);
+  SetLanguageBase(UI_ColumnAdapterGateway, Form2.ListView1.Column[1]);
+end;
+
+procedure TForm1.LoadLanguageUI; // 載入語言檔並更新介面語言
+var
+  s1, s2: string;
+begin
+  s1 := ExtractFileName(Application.ExeName);
+
+  // 取得使用者的地區語系代號(如：en-US)
+  s2 := Languages.LocaleName[Languages.IndexOf(Languages.UserDefaultLocale)];
+
+  //
+  // 預設若工作目錄下存在與使用者語系代號相符的語系檔名，優先使用 (如 PingTool.en-US.language)
+  // 否則載入 .language 檔，用來指定當語系檔名與與使用者語系代號不同時的狀況，避免檔名混淆。
+  //
+  s2 := ChangeFileExt(s1, '.' + s2 + '.language');
+  if not FileExists(s2, False) then
+    s2 := ChangeFileExt(s1, '.language');
+
+  LoadLanguage;     // 載入本程式被預置的語系檔，此項為預防外部語系檔字串缺失。
+  LoadLanguage(s2); // 載入外部語系檔，會覆蓋記憶體中已存在的語系字串。
+  UpdateLanguageUI; // 更新介面顯示為載入的語系。
+end;
+
 procedure TForm1.Splitter1CanResize(Sender: TObject; var NewSize: Integer; var Accept: Boolean);
 begin
   if NewSize > TSplitter(Sender).MinSize then
@@ -283,6 +640,7 @@ const
   {$J-}
 var
   I: Integer;
+  iUI: TUI;
   Point: TPoint;
 begin
   if LastX = X then
@@ -304,8 +662,10 @@ begin
 
   Point := StatusBar1.ClientToScreen(TPoint.Create(X, Y));
 
-  BalloonHint1.Title := cStatusBarHints[TStatusBarHint(I), _SBHC_Title];
-  BalloonHint1.Description := cStatusBarHints[TStatusBarHint(I), _SBHC_Description];
+  iUI := UI_StatusPings;
+  Inc(iUI, I);
+  BalloonHint1.Title := UI[iUI].Language.Hint;
+  BalloonHint1.Description := UI[iUI].Language.Description;
   BalloonHint1.ShowHint(Point);
 end;
 
@@ -446,7 +806,7 @@ begin
 
     // 如清單缺少子項目則發出例外
     if Item.SubItems.Count < 1 then
-      raise Exception.Create('Adapter list error.');
+      raise Exception.Create(AppMessage[AM_errAdapterList]);
   finally
     AddAdapterAddressesToComboBox;
   end;
@@ -718,10 +1078,8 @@ begin
 end;
 
 function TForm1.InsertTimeStamp(const s: string): string;
-const
-  cFormat = 'mm/dd hh:nn:ss.zzz ';
 begin
-  Result := FormatDateTime(cFormat, Now) + s;
+  Result := FormatDateTime(AppMessage[AM_logTimeStamp], Now) + s;
 end;
 
 procedure TForm1.FlushLogsBuff;
@@ -769,10 +1127,10 @@ end;
 
 procedure TForm1.FormatInfo(var ValueOut: TListViewString; const ValueIn: TReplyInfo);
 begin
-  ValueOut.Title := FormatDateTime('yyyy/mm/dd hh:nn:ss.zzz', ValueIn.Timestamp);
+  ValueOut.Title := FormatDateTime(AppMessage[AM_recordTimeStamp], ValueIn.Timestamp);
   ValueOut.Text := ValueIn.GetErrorMessage;
   if ValueOut.Text.IsEmpty then
-    ValueOut.Text := Format('Replies: %u, RoundTripTime: %ums.', [ValueIn.Replies, ValueIn.RoundTripTime]);
+    ValueOut.Text := Format(AppMessage[AM_logReplyInfo], [ValueIn.Replies, ValueIn.RoundTripTime]);
 end;
 
 procedure TForm1.SyncListView;
@@ -826,7 +1184,7 @@ end;
 procedure TForm1.SyncOnBefore;
 begin
   SstControlEnabled(False);
-  Button1.Caption := 'Stop';
+  Button1.Caption := UI[UI_BtnStop].Language.Text;
   Memo1.Clear;
   LastStr1 := '';
   LastStr2 := '';
@@ -847,10 +1205,10 @@ end;
 
 procedure TForm1.SyncOnAfter;
 begin
-  Memo1.Lines.Add(InsertTimeStamp('Terminated.'));
+  Memo1.Lines.Add(InsertTimeStamp(AppMessage[AM_logTerminated]));
   FormAddrStr := '';
   ToAddrStr := '';
-  Button1.Caption := 'Start';
+  Button1.Caption := UI[UI_BtnStart].Language.Text;
   SstControlEnabled(True);
 end;
 
@@ -886,12 +1244,12 @@ var
     end;
   begin
     if P.RttMin > P.RttMax then
-      Exit('Min: ?ms, Max: ?ms, Average: ?ms');
+      Exit(AppMessage[AM_recordStatisUnknown]);
 
     Min := FormatRTT(P.RttMin);
     Max := FormatRTT(P.RttMax);
     Average := P.RttAverage.ToString(ffGeneral, 1, 3);
-    Result := Format('Min: %sms, Max: %sms, Average: %sms', [Min, Max, Average]);
+    Result := Format(AppMessage[AM_recordStatistics], [Min, Max, Average]);
   end;
 begin
   AddReplyInfo(ReplyInfo);
@@ -905,13 +1263,11 @@ begin
     // 回應結果的訊息
     case ReplyInfo.Family of
     AF_INET:
-      s := Format(
-        'Reply from %s, RoundTripTime: %ums, Size: %u, TTL: %u, TOS: %u, Flags: %u.', [
+      s := Format(AppMessage[AM_recordReplyIPv4], [
         AddressToString(ReplyInfo.Address.v4), ReplyInfo.RoundTripTime, Ping.RequestSize,
         IcmpEcho.v4.Options.Ttl, IcmpEcho.v4.Options.Tos, IcmpEcho.v4.Options.Flags]);
     AF_INET6:
-      s := Format(
-        'Reply from %s, RoundTripTime: %ums.', [
+      s := Format(AppMessage[AM_recordReplyIPv6], [
         AddressToString(ReplyInfo.Address.v6), ReplyInfo.RoundTripTime]);
     else s := '';
     end;
@@ -940,12 +1296,12 @@ begin
   // 更新狀態顯示
   StatusBar1.Panels.BeginUpdate;
   try
-    StatusPanel(_SBH_Pings).Text := 'Pings: ' + Ping.Times.ToString;
-    StatusPanel(_SBH_Fails).Text := 'Fails: ' + Ping.Fails.ToString;
-    StatusPanel(_SBH_Loss).Text  := 'Lost: ' + Ping.Lost.ToString;
-    StatusPanel(_SBH_Times).Text := 'Timeouts: ' + Ping.Timeouts.ToString;
-    StatusPanel(_SBH_Rate).Text  := 'Loss: ' + Ping.LossRate.ToString(ffGeneral, 3, 0) + '%';
-    StatusPanel(_SBH_Reply).Text := GetRoundTripTimeStatus(Ping);
+    StatusPanel(_SBH_Pings).Text := Format(UI[UI_StatusPings].Language.Text, [Ping.Times.ToString]);
+    StatusPanel(_SBH_Fails).Text := Format(UI[UI_StatusFails].Language.Text,[Ping.Fails.ToString]);
+    StatusPanel(_SBH_Loss).Text  := Format(UI[UI_StatusLoss].Language.Text, [Ping.Lost.ToString]);
+    StatusPanel(_SBH_Times).Text := Format(UI[UI_StatusTimes].Language.Text, [Ping.Timeouts.ToString]);
+    StatusPanel(_SBH_Rate).Text  := Format(UI[UI_StatusRate].Language.Text, [Ping.LossRate.ToString(ffGeneral, 3, 0) + '%']);
+    StatusPanel(_SBH_Reply).Text := Format(UI[UI_StatusReply].Language.Text, [GetRoundTripTimeStatus(Ping)]);
   finally
     StatusBar1.Panels.EndUpdate;
   end;
@@ -953,7 +1309,7 @@ end;
 
 procedure TForm1.IdThreadComponent1Exception(Sender: TIdThreadComponent; AException: Exception);
 begin
-  Memo1.Lines.Add('Exception: ' + AException.Message);
+  Memo1.Lines.Add(Format(AppMessage[AM_logException], [AException.Message]));
 end;
 
 procedure TForm1.IdThreadComponent1BeforeExecute(Sender: TIdThreadComponent);
@@ -972,7 +1328,7 @@ begin
     // 如果有沒有輸入 來源 位址則 標記此執行續停止 並 退出處理
     if ToAddrStr.IsEmpty then
     begin
-      LogsBuff.Add('Missing input source or destination address.');
+      LogsBuff.Add(AppMessage[AM_logMissingAddress]);
       Sender.Terminate;
       Exit;
     end;
@@ -981,7 +1337,7 @@ begin
     FillChar(FormIP, SizeOf(FormIP), 0);
     if not StringToAddress(FormAddrStr, FormIP) then
     begin
-      LogsBuff.Add('Unable to get address data corresponding to source address string.');
+      LogsBuff.Add(AppMessage[AM_logUnableDomainToIP]);
       Sender.Terminate;
       Exit;
     end;
@@ -1005,9 +1361,7 @@ begin
         if not b then // 沒有任何符合的位址資訊
         begin
           Sender.Terminate;
-          LogsBuff.Add(Format(
-            'Domain %s IP: <No IP found with the same source family %s>.', [
-            ToAddrStr, GetFamilyStr(Hints.ai_family, True)]));
+          LogsBuff.Add(Format(AppMessage[AM_logDomainNoFound], [ToAddrStr, GetFamilyStr(Hints.ai_family, True)]));
           Exit;
         end;
 
@@ -1015,17 +1369,16 @@ begin
           1:   // 只有單筆位址資訊
           begin
             ToIP := ToAddresses.List[0].addr;
-            LogsBuff.Add(Format('Domain %s IP[%d]: %s', [ToAddrStr,
-              ToAddresses.Count, AddressToString(ToIP)]));
+            LogsBuff.Add(Format(AppMessage[AM_logDomainSingle], [ToAddrStr, ToAddresses.Count, AddressToString(ToIP)]));
           end;
           else // 多筆位址資訊
           begin
-            LogsBuff.Add(Format('Domain %s IP[%d]: ', [ToAddrStr, ToAddresses.Count]));
+            LogsBuff.Add(Format(AppMessage[AM_logDomainMultiple], [ToAddrStr, ToAddresses.Count]));
             b := True;
             for I := 0 to ToAddresses.Count - 1 do
             begin
               pInfo := @ToAddresses.List[I];
-              LogsBuff.Add(Format('%s', [AddressToString(pInfo.addr)]));
+              LogsBuff.Add(AddressToString(pInfo.addr));
               if b then
               begin
                 b := False;
@@ -1047,14 +1400,11 @@ begin
     Ping.IcmpCreate(FormIP, ToIP);
     Ping.CreatRequest(RequestSize);
 
-    LogsBuff.Add(Format(
-      'Ping form %s to %s, RequestSize: %ubytes, Timeout %ums, Interval %ums.', [
+    LogsBuff.Add(Format(AppMessage[AM_logPingForm], [
       AddressToString(FormIP), AddressToString(ToIP), RequestSize, TimeoutMS, IntervalMS]));
     if Ping.GetIpOptions(Option) then // 如 Ping 的 IpOptions 有被設定時
     begin
-      LogsBuff.Add(Format(
-        'Options: Ttl %d, Tos %d, Flags 0x%0.2X.', [
-        Option.Ttl, Option.Tos, Option.Flags]));
+      LogsBuff.Add(Format(AppMessage[AM_logOptions], [Option.Ttl, Option.Tos, Option.Flags]));
     end;
   finally
     // 與主執行續同步，通知主執行續初始化作業結束
